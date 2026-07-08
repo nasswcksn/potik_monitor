@@ -1,0 +1,41 @@
+<USER_REQUEST>
+ini daftar logo dari web asli bps tologn tambahkan dan mapping sesuai metadata institusi
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- title, meta, style dsb -->
+    <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+
+  <!-- CSRF Token -->
+  <meta name="csrf-token" content="sa85jjfpQqEDMTO6BfZyXN9pFn38lswBnC93iHBQ">
+
+  <title>Pojok Statistik Virtual - Backend</title>
+  <meta name="description" content="Pojok Statistik">
+  <meta name="author" content="Tim Pojok Statistik BPS">
+  <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
+
+  <link rel="shortcut icon" href="https://pojokstatistik.bps.go.id/dist/img/logo_pojok_statistik.svg" type="image/vnd.microsoft.icon">
+  
+  <link rel="stylesheet" type="text/css" href="https://unpkg.com/trix@2.0.0/dist/trix.css">
+    <script type="text/javascript" src="https://unpkg.com/trix@2.0.0/dist/trix.umd.min.js"></script>
+  
+  <!-- Bootstrap 4 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/4.6.0/css/bootstrap.min.css" integrity="sha512-P5MgMn1jBN01asBgU0z60Qk4QxiXo86+wlFahKrsQf37c9cro517WzVSPPV1tDKzhku2iJ2FVgL67wG03SGnNA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <link rel="stylesheet" href="https://pojokstatistik.bps.go.id/plugins/select2/css/select2.css" type="text/css" />
+  <link rel="stylesheet" href="https://pojokstatistik.bps.go.id/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css" type="text/css" />
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" integrity="sha512-1ycn6IcaQQ40/MKBW2W4Rhis/DbILU74C1vSrLJxCq57o941Ym01SwNsOMqvEBFlcgUa6xLiPY/NS5R+E6ztJQ==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <!-- overlayScrollbars -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/overlayscrollbars/1.13.1/css/OverlayScrollbars.min.css" integrity="sha512-jN4
+<truncated 45216 bytes>
+niversitas Nazhatut Thullab Al-Muafa Sampang)</option>
+                                                                                                                                                            <option value="eyJpdiI6ImVTTGZKeEFLU1NGZW1XeDRrRUdjb0E9PSIsInZhbHVlIjoiZWx0a1QrNVlJMVNPdEtyRWVvaU13UT09IiwibWFjIjoiZmNkN2M3MDQ3MmNhMjEzNjE3ZGRiODk1ZjJmMjliMDU0YTUxNWNlODI5YTc3NTdmMmY5MzYwZDE3NWIzZmNlYyJ9" >UM (Universitas Negeri Malang)</option>
+                                                                                                                                                            <option value="eyJpdiI6IkNEMnQzbU5pbjJybitnXC9nUkZHTlZBPT0iLCJ2YWx1ZSI6IjdEYkZ0cVQyM0l4N1VTUkpZU0dYV3c9PSIsIm1hYyI6IjFmYTc0ZjUxOGJiMGI3MDYwYWUwYzM2NDFiNjU3NDU5ZGIyZDdlOWY5Y2ZmOWNhNDljOGU2Y2NkZDRlNzQ5MDkifQ==" >UNUJA (Universitas Nurul Jadid)</option>
+                                                                                                                                                            <option value="eyJpdiI6IkliSGp2UkRNSEtcL0xHQytkVUNWQWxBPT0iLCJ2YWx1ZSI6ImZXNWM4Nnh2Q1lcL01QQkc0M1B1eEJBPT0iLCJtYWMiOiJmZWE1M2U0MTMzMDFiYjIxM2FhMjM4MzNjZWY5OWEzYzUwMWFiMmUzNjU2MDRmM2U5OWEwYTE1ODBjMzc4OTczIn0=" >UPNJATIM (Universitas Pembangunan Nasional Veteran Jawa Timur)</option>
+                                                                                                                                                            <option value="eyJpdiI6Ill6WXVSd3FJWUN1SFRzZG1vcENJY1E9PSIsInZhbHVlIjoiMXJHNXJZeGxTZ1BJK1ZTM1BTTWFkQT09IiwibWFjIjoiY2M2YjMzYzhmYTU0NTdmNzgwNWQ3Y2U4OWM5ZWNlZmU2OWIxYmIwMmEzM2IyMWViMTA5YzE3NGJhZjUwMmRiOSJ9" >UNIPDU (Universitas Pesantren Tinggi Darul &#039;Ulum)</option>
+                                                                                                                                                            <opt
+<truncated 289895 bytes>
+
+NOTE: The output was truncated because it was too long. Use a more targeted query or a smaller range to get the information you need.
