@@ -127,7 +127,7 @@ export default function PotikDetail({ potikId, onBack }) {
     <div className="potik-detail-view animate-fade-in">
       {/* Back Button */}
       <button className="btn btn-secondary btn-back flex-gap-2" onClick={onBack}>
-        <ArrowLeft size={16} /> Kembali ke Katalog
+        <ArrowLeft size={16} /> Kembali
       </button>
 
       {/* Profile Header */}
@@ -188,7 +188,7 @@ export default function PotikDetail({ potikId, onBack }) {
                 <span className="val">{potik.contentsCount.edukasi}</span>
               </div>
               <div className="stat-row">
-                <span className="label flex-gap-2"><Users size={14} className="color-kegiatan" /> Kegiatan Mitra</span>
+                <span className="label flex-gap-2"><Users size={14} className="color-kegiatan" /> Kegiatan Lain</span>
                 <span className="val">{potik.contentsCount.kegiatan}</span>
               </div>
               <div className="stat-row border-top-glow">
