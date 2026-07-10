@@ -205,6 +205,8 @@ export default function Simulator() {
   const [customPath, setCustomPath] = useState("");
   const [isProxyOnline, setIsProxyOnline] = useState(false);
   const [proxyLoading, setProxyLoading] = useState(false);
+  const [isAutoScrape, setIsAutoScrape] = useState(true); // Paginasi otomatis
+  const [scrapeDelay, setScrapeDelay] = useState("2000"); // Jeda 2 detik antar request untuk menghindari rate-limit BPS
 
   const terminalEndRef = useRef(null);
 
@@ -228,8 +230,8 @@ export default function Simulator() {
     }
   };
 
-  const loadLogs = () => {
-    setLogs(getScraperLogs());
+  const loadLogs = async () => {
+    setLogs(await getScraperLogs());
   };
 
   const checkProxyStatus = async () => {
@@ -275,12 +277,16 @@ export default function Simulator() {
     }
     
     // Tentukan default path berdasarkan kategori BPS
-    if (selectedType === "kegiatan") {
+    if (integrationMode === 'proxy') {
       setCustomPath("/adminpsbe/kegiatan-lain/datatable");
     } else {
-      setCustomPath(`/adminpsbe/${selectedType}/datatable`);
+      if (selectedType === "kegiatan") {
+        setCustomPath("/adminpsbe/kegiatan-lain/datatable");
+      } else {
+        setCustomPath(`/adminpsbe/${selectedType}/datatable`);
+      }
     }
-  }, [selectedUni, selectedType, potiks]);
+  }, [selectedUni, selectedType, integrationMode, potiks]);
 
   const handleSimulate = async () => {
     if (!selectedUni) return;
@@ -369,76 +375,134 @@ export default function Simulator() {
     if (!chosenUni) return;
 
     setProxyLoading(true);
-    addScraperLog("info", `[PROXY FETCH] Menghubungi proxy untuk menarik data dari BPS (Kategori: ${selectedType}, BPS Univ ID: ${bpsUniId})...`);
-
-    // Bangun URL BPS: Dinamis untuk Datatable (JSON) vs Halaman Biasa (HTML)
-    const trimmedPath = customPath.trim();
-    let bpsBaseUrl = `https://pojokstatistik.bps.go.id${trimmedPath}`;
-    if (trimmedPath.includes('datatable')) {
-      bpsBaseUrl += `?draw=1&start=0&length=1000&university_id=${bpsUniId}`;
-    } else {
-      bpsBaseUrl += `?university_id=${bpsUniId}`;
-    }
     
-    const proxyUrl = `/api/fetch?url=${encodeURIComponent(bpsBaseUrl)}`;
+    const categories = ['infografis', 'video', 'edukasi', 'kegiatan'];
+    const delayMs = parseInt(scrapeDelay) || 2000;
+    
+    let totalImportedGlobal = 0;
+    let totalDuplicatesGlobal = 0;
+
+    addScraperLog("info", `🚀 [BATCH RUN] Memulai penarikan data 4 Kategori sekaligus untuk "${chosenUni.name}"...`);
 
     let cookieHeaderValue = cookieInput.trim();
-    // Jika user hanya menempelkan token pojokstatisik_session (tanpa tanda '=' )
     if (cookieHeaderValue && !cookieHeaderValue.includes('=')) {
       cookieHeaderValue = `pojokstatisik_session=${cookieHeaderValue}`;
     }
 
-    try {
-      const response = await fetch(proxyUrl, {
-        method: 'GET',
-        headers: {
-          'X-BPS-Cookie': cookieHeaderValue
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP Error ${response.status}: ${response.statusText}`);
-      }
-
-      const resText = await response.text();
-      let resJson;
+    for (let c = 0; c < categories.length; c++) {
+      const currentCat = categories[c];
+      const catLabel = currentCat === 'edukasi' ? 'Edukasi Statistik' : 
+                       currentCat === 'kegiatan' ? 'Kegiatan Lainnya' : 
+                       currentCat.charAt(0).toUpperCase() + currentCat.slice(1);
       
-      // Deteksi jika dialihkan ke halaman login BPS (sesi cookie habis)
-      if (resText.includes('/login') || resText.includes('login-box') || resText.includes('name="username"') || resText.includes('name="password"')) {
-        throw new Error("Sesi Cookie BPS Anda sudah kedaluwarsa atau tidak valid (Dialihkan ke halaman login BPS). Silakan masuk kembali ke web BPS asli dan salin cookie sesi yang baru.");
+      addScraperLog("info", `----------------------------------------`);
+      addScraperLog("info", `📂 Memulai kategori: [${catLabel}]`);
+
+      // Tentukan path API BPS untuk kategori ini
+      let catPath = `/adminpsbe/${currentCat}/datatable`;
+      if (currentCat === "kegiatan") {
+        catPath = customPath.trim().includes("kegiatan") ? customPath.trim() : "/adminpsbe/kegiatan-lain/datatable";
       }
 
-      // Deteksi format kembalian (HTML vs JSON)
-      if (resText.trim().startsWith('<') || resText.includes('<!DOCTYPE') || resText.includes('<html')) {
-        if (selectedType === "kegiatan") {
-          addScraperLog("info", "📄 [PARSER] Terdeteksi respon HTML. Menjalankan parser DOM HTML untuk mem-parsing tabel kegiatan...");
-          resJson = parseHtmlToKegiatanJson(resText, bpsUniId);
-          addScraperLog("success", `[PARSER] Berhasil mengekstrak ${resJson.data.length} data kegiatan dari tabel HTML BPS!`);
+      let currentStart = 0;
+      const batchLength = 100;
+      let hasMore = true;
+      let catImported = 0;
+      let catDuplicates = 0;
+
+      while (hasMore) {
+        addScraperLog("info", `[PROXY FETCH] Menghubungi proxy (Kategori: ${catLabel}, Start: ${currentStart}, Length: ${batchLength})...`);
+        
+        let bpsBaseUrl = `https://pojokstatistik.bps.go.id${catPath}`;
+        if (catPath.includes('datatable')) {
+          bpsBaseUrl += `?draw=1&start=${currentStart}&length=${batchLength}&university_id=${bpsUniId}`;
         } else {
-          throw new Error("Menerima respon HTML dari BPS yang tidak diharapkan. Pastikan Sesi Cookie Anda masih aktif dan BPS University ID benar.");
+          bpsBaseUrl += `?university_id=${bpsUniId}`;
+          hasMore = false;
         }
-      } else {
-        resJson = JSON.parse(resText);
+        
+        const proxyUrl = `/api/fetch?url=${encodeURIComponent(bpsBaseUrl)}`;
+
+        try {
+          const response = await fetch(proxyUrl, {
+            method: 'GET',
+            headers: {
+              'X-BPS-Cookie': cookieHeaderValue
+            }
+          });
+
+          if (!response.ok) {
+            throw new Error(`HTTP Error ${response.status}: ${response.statusText}`);
+          }
+
+          const resText = await response.text();
+          let resJson;
+          
+          if (resText.includes('/login') || resText.includes('login-box') || resText.includes('name="username"') || resText.includes('name="password"')) {
+            throw new Error("Sesi Cookie BPS Anda sudah kedaluwarsa atau tidak valid (Dialihkan ke halaman login BPS).");
+          }
+
+          if (resText.trim().startsWith('<') || resText.includes('<!DOCTYPE') || resText.includes('<html')) {
+            if (currentCat === "kegiatan") {
+              addScraperLog("info", "📄 [PARSER] Terdeteksi respon HTML. Menjalankan parser DOM HTML...");
+              resJson = parseHtmlToKegiatanJson(resText, bpsUniId);
+              addScraperLog("success", `[PARSER] Berhasil mengekstrak ${resJson.data.length} data kegiatan dari tabel HTML BPS!`);
+              hasMore = false;
+            } else {
+              throw new Error("Menerima respon HTML dari BPS yang tidak diharapkan.");
+            }
+          } else {
+            resJson = JSON.parse(resText);
+          }
+          
+          setLastResponse(resJson);
+
+          const resImport = await importScrapedData(selectedUni, currentCat, resJson);
+          catImported += resImport.importedCount;
+          catDuplicates += resImport.duplicateCount;
+          totalImportedGlobal += resImport.importedCount;
+          totalDuplicatesGlobal += resImport.duplicateCount;
+
+          const recordsFiltered = resJson.recordsFiltered || 0;
+          const recordsReturned = (resJson.data || []).length;
+
+          addScraperLog("success", `[${catLabel}] Sukses mengambil ${recordsReturned} data. (${resImport.importedCount} baru, ${resImport.duplicateCount} diperbarui/dilewati).`);
+
+          if (recordsReturned < batchLength || (currentStart + recordsReturned) >= recordsFiltered || !catPath.includes('datatable')) {
+            hasMore = false;
+          } else {
+            currentStart += batchLength;
+            addScraperLog("info", `⏳ Jeda ${delayMs}ms sebelum mengambil halaman berikutnya...`);
+            await new Promise(resolve => setTimeout(resolve, delayMs));
+          }
+
+        } catch (err) {
+          addScraperLog("error", `[${catLabel} FAIL] Gagal memanggil API BPS pada baris ${currentStart}: ${err.message}`);
+          hasMore = false;
+          addScraperLog("info", `Mengabaikan sisa kategori ${catLabel} karena kendala error.`);
+        }
       }
-      
-      setLastResponse(resJson);
 
-      const resImport = await importScrapedData(selectedUni, selectedType, resJson);
+      addScraperLog("success", `[${catLabel} SELESAI] Total Terimpor: ${catImported} baru, ${catDuplicates} diperbarui.`);
 
+      if (c < categories.length - 1) {
+        addScraperLog("info", `⏳ Jeda ${delayMs}ms sebelum beralih ke kategori berikutnya...`);
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
+    }
+
+    setProxyLoading(false);
+
+    if (totalImportedGlobal > 0) {
       confetti({
-        particleCount: 150,
-        spread: 80,
+        particleCount: 200,
+        spread: 100,
         origin: { y: 0.6 },
         colors: ['#0284c7', '#ea580c', '#10b981']
       });
-
-      alert(`Berhasil fetch live data! ${resImport.importedCount} item baru disinkronisasi, ${resImport.duplicateCount} duplikat diabaikan.`);
-    } catch (err) {
-      addScraperLog("error", `[PROXY FETCH FAIL] Gagal memanggil API BPS: ${err.message}`);
-      alert("Fetch Gagal: " + err.message + "\n\nPastikan Cookie yang Anda masukkan valid dan belum kedaluwarsa.");
-    } finally {
-      setProxyLoading(false);
     }
+
+    alert(`[SINKRONISASI 4 KATEGORI SELESAI]\nBerhasil memproses semua data untuk ${chosenUni.name}.\n\nTotal data baru terimpor: ${totalImportedGlobal} item\nTotal data diperbarui/dilewati: ${totalDuplicatesGlobal} item`);
   };
 
   const getLogIcon = (type) => {
@@ -569,20 +633,22 @@ export default function Simulator() {
                   </select>
                 </div>
 
-                <div className="form-group">
-                  <label>Kategori Sumber Data:</label>
-                  <select 
-                    value={selectedType} 
-                    onChange={(e) => setSelectedType(e.target.value)}
-                    className="input-control select-control"
-                    disabled={proxyLoading}
-                  >
-                    <option value="infografis">Infografis</option>
-                    <option value="video">Video Edukasi</option>
-                    <option value="edukasi">Edukasi Statistik</option>
-                    <option value="kegiatan">Kegiatan Lainnya</option>
-                  </select>
-                </div>
+                {integrationMode !== 'proxy' && (
+                  <div className="form-group">
+                    <label>Kategori Sumber Data:</label>
+                    <select 
+                      value={selectedType} 
+                      onChange={(e) => setSelectedType(e.target.value)}
+                      className="input-control select-control"
+                      disabled={proxyLoading}
+                    >
+                      <option value="infografis">Infografis</option>
+                      <option value="video">Video Edukasi</option>
+                      <option value="edukasi">Edukasi Statistik</option>
+                      <option value="kegiatan">Kegiatan Lainnya</option>
+                    </select>
+                  </div>
+                )}
 
                 {/* MODE A: LIVE PROXY */}
                 {integrationMode === 'proxy' && (
@@ -597,7 +663,7 @@ export default function Simulator() {
                     </div>
 
                     <div className="form-group">
-                      <label>BPS Database University ID:</label>
+                      <label>University ID (BPS Database):</label>
                       <input 
                         type="text" 
                         placeholder="Contoh: 68" 
@@ -607,6 +673,36 @@ export default function Simulator() {
                         disabled={proxyLoading}
                         style={{ fontSize: '0.8rem' }}
                       />
+                    </div>
+
+
+
+                    <div style={{ display: 'flex', gap: '1rem', width: '100%', alignItems: 'center', marginTop: '0.25rem', marginBottom: '0.75rem' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', fontWeight: '600', cursor: 'pointer', color: 'var(--text-primary)' }}>
+                        <input 
+                          type="checkbox" 
+                          checked={isAutoScrape} 
+                          onChange={(e) => setIsAutoScrape(e.target.checked)}
+                          disabled={proxyLoading}
+                        />
+                        Jeda Waktu (Set-Interval)
+                      </label>
+                      
+                      {isAutoScrape && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem' }}>
+                          <span style={{ color: 'var(--text-secondary)' }}>Jeda:</span>
+                          <input 
+                            type="number" 
+                            value={scrapeDelay} 
+                            onChange={(e) => setScrapeDelay(e.target.value)}
+                            className="input-control"
+                            disabled={proxyLoading}
+                            min="500"
+                            style={{ padding: '0.2rem 0.4rem', borderRadius: '6px', fontSize: '0.7rem', width: '80px', height: '26px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', outline: 'none' }}
+                          />
+                          <span style={{ color: 'var(--text-secondary)' }}>ms</span>
+                        </div>
+                      )}
                     </div>
 
                     <div className="form-group">
@@ -626,7 +722,7 @@ export default function Simulator() {
                     </div>
 
                     <div className="form-group">
-                      <label>Edit Custom API Endpoint Path:</label>
+                      <label>{integrationMode === 'proxy' ? 'Edit Path Khusus (Kategori Kegiatan):' : 'Edit Custom API Endpoint Path:'}</label>
                       <input 
                         type="text" 
                         value={customPath} 
@@ -646,12 +742,12 @@ export default function Simulator() {
                       {proxyLoading ? (
                         <>
                           <RefreshCw className="spinner" size={16} />
-                          <span>Fetching Live Data BPS...</span>
+                          <span>Menarik 4 Kategori Sekaligus...</span>
                         </>
                       ) : (
                         <>
                           <Zap size={16} />
-                          <span>Tarik & Sinkronisasi Live Data</span>
+                          <span>Start Scraping (infografis, video, edukasi, kegiatan)</span>
                         </>
                       )}
                     </button>
