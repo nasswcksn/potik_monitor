@@ -13,6 +13,7 @@ import {
   Search,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Eye,
   Heart,
   X,
@@ -32,6 +33,7 @@ import { fetchPotikDetail, fetchDatatable } from '../data/apiClient';
 export default function PotikDetail({ potikId, onBack }) {
   const [potik, setPotik] = useState(null);
   const [activeSubTab, setActiveSubTab] = useState("infografis");
+  const [isTypeDropdownOpen, setIsTypeDropdownOpen] = useState(false);
   
   // States untuk DataTable
   const [tableData, setTableData] = useState([]);
@@ -217,47 +219,65 @@ export default function PotikDetail({ potikId, onBack }) {
 
         {/* Right Side: DataTables Panel */}
         <div className="detail-right-column glass-card">
-          {/* Sub-Tabs Nav */}
-          <div className="datatable-tabs border-bottom flex-between flex-wrap gap-2">
-            <div className="tabs-buttons flex-gap-2">
-              <button 
-                className={`tab-btn flex-gap-2 ${activeSubTab === "infografis" ? "active" : ""}`}
-                onClick={() => setActiveSubTab("infografis")}
-              >
-                <FileText size={16} /> Infografis
-              </button>
-              <button 
-                className={`tab-btn flex-gap-2 ${activeSubTab === "video" ? "active" : ""}`}
-                onClick={() => setActiveSubTab("video")}
-              >
-                <Video size={16} /> Video
-              </button>
-              <button 
-                className={`tab-btn flex-gap-2 ${activeSubTab === "edukasi" ? "active" : ""}`}
-                onClick={() => setActiveSubTab("edukasi")}
-              >
-                <BookOpen size={16} /> Edukasi
-              </button>
-              <button 
-                className={`tab-btn flex-gap-2 ${activeSubTab === "kegiatan" ? "active" : ""}`}
-                onClick={() => setActiveSubTab("kegiatan")}
-              >
-                <Users size={16} /> Kegiatan
-              </button>
-            </div>
+          {/* Sub-Tabs Nav / Dropdown & Filters */}
+          <div className="datatable-tabs border-bottom" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
             
-            {/* Filter controls: Date Range + Search */}
-            <div className="datatable-filters flex-gap-3" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              {/* Search Input */}
-              <div className="table-search">
-                <Search size={14} className="search-icon-sm" />
-                <input 
-                  type="text" 
-                  placeholder="Cari konten..." 
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="input-control input-sm"
-                />
+            {/* Left Side: Type Dropdown + Date Filter */}
+            <div className="left-filters">
+              
+              {/* Custom Type Dropdown */}
+              <div className="custom-dropdown-container" style={{ position: 'relative' }}>
+                <button 
+                  className="dropdown-trigger"
+                  onClick={() => setIsTypeDropdownOpen(!isTypeDropdownOpen)}
+                >
+                  {activeSubTab === "infografis" && <FileText size={14} className="color-infografis" />}
+                  {activeSubTab === "video" && <Video size={14} className="color-video" />}
+                  {activeSubTab === "edukasi" && <BookOpen size={14} className="color-edukasi" />}
+                  {activeSubTab === "kegiatan" && <Users size={14} className="color-kegiatan" />}
+                  <span style={{ fontWeight: '600' }}>
+                    {activeSubTab === 'kegiatan' ? 'Kegiatan' : activeSubTab.charAt(0).toUpperCase() + activeSubTab.slice(1)}
+                  </span>
+                  <ChevronDown size={14} style={{ marginLeft: '0.25rem', opacity: 0.7 }} />
+                </button>
+
+                {isTypeDropdownOpen && (
+                  <>
+                    {/* Backdrop to close when clicking outside */}
+                    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99 }} onClick={() => setIsTypeDropdownOpen(false)} />
+                    
+                    <div className="dropdown-menu">
+                      <button 
+                        className={`dropdown-item ${activeSubTab === 'infografis' ? 'active' : ''}`}
+                        onClick={() => { setActiveSubTab('infografis'); setIsTypeDropdownOpen(false); }}
+                      >
+                        <FileText size={14} className="color-infografis" />
+                        <span>Infografis</span>
+                      </button>
+                      <button 
+                        className={`dropdown-item ${activeSubTab === 'video' ? 'active' : ''}`}
+                        onClick={() => { setActiveSubTab('video'); setIsTypeDropdownOpen(false); }}
+                      >
+                        <Video size={14} className="color-video" />
+                        <span>Video</span>
+                      </button>
+                      <button 
+                        className={`dropdown-item ${activeSubTab === 'edukasi' ? 'active' : ''}`}
+                        onClick={() => { setActiveSubTab('edukasi'); setIsTypeDropdownOpen(false); }}
+                      >
+                        <BookOpen size={14} className="color-edukasi" />
+                        <span>Edukasi</span>
+                      </button>
+                      <button 
+                        className={`dropdown-item ${activeSubTab === 'kegiatan' ? 'active' : ''}`}
+                        onClick={() => { setActiveSubTab('kegiatan'); setIsTypeDropdownOpen(false); }}
+                      >
+                        <Users size={14} className="color-kegiatan" />
+                        <span>Kegiatan</span>
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* Date Filter */}
@@ -277,7 +297,21 @@ export default function PotikDetail({ potikId, onBack }) {
                   className="input-control input-date"
                 />
               </div>
+
             </div>
+
+            {/* Right Side: Search Input */}
+            <div className="table-search">
+              <Search size={14} className="search-icon-sm" />
+              <input 
+                type="text" 
+                placeholder="Cari konten..." 
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="input-control input-sm"
+              />
+            </div>
+
           </div>
 
           {/* DataTable Content */}
@@ -594,32 +628,77 @@ export default function PotikDetail({ potikId, onBack }) {
           padding-bottom: 1rem;
         }
 
-        .tabs-buttons {
-          overflow-x: auto;
+        .left-filters {
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+          flex-wrap: wrap;
         }
 
-        .tab-btn {
-          background: transparent;
-          border: 1px solid transparent;
-          color: var(--text-secondary);
-          padding: 0.5rem 1rem;
-          border-radius: 8px;
-          cursor: pointer;
-          font-family: var(--font-heading);
+        .dropdown-trigger {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 0.45rem 1rem;
+          font-size: 0.8rem;
           font-weight: 600;
-          font-size: 0.85rem;
+          border-radius: 6px;
+          cursor: pointer;
+          height: 36px;
+          box-sizing: border-box;
+          background: var(--bg-secondary);
+          color: var(--text-primary);
+          border: 1px solid var(--border-color);
           transition: var(--transition-fast);
         }
 
-        .tab-btn:hover {
-          color: var(--bps-blue);
-          background: rgba(0, 0, 0, 0.02);
+        .dropdown-trigger:hover {
+          background: var(--bg-tertiary);
+          border-color: var(--bps-blue);
         }
 
-        .tab-btn.active {
-          background: linear-gradient(135deg, rgba(2, 132, 199, 0.1) 0%, rgba(234, 88, 12, 0.02) 100%);
-          color: var(--bps-blue);
-          border-color: var(--border-color);
+        .dropdown-menu {
+          position: absolute;
+          top: 100%;
+          left: 0;
+          margin-top: 0.35rem;
+          width: 160px;
+          z-index: 1000;
+          display: flex;
+          flex-direction: column;
+          padding: 0.35rem;
+          gap: 0.15rem;
+          box-shadow: var(--shadow-md);
+          background: var(--bg-primary);
+          border: 1px solid var(--border-color);
+          border-radius: 8px;
+        }
+
+        .dropdown-item {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          width: 100%;
+          padding: 0.5rem 0.75rem;
+          border: none;
+          background: transparent;
+          color: var(--text-secondary);
+          border-radius: 6px;
+          font-size: 0.8rem;
+          font-weight: 500;
+          cursor: pointer;
+          text-align: left;
+          transition: var(--transition-fast);
+        }
+
+        .dropdown-item:hover {
+          background: var(--bg-tertiary) !important;
+          color: var(--bps-blue) !important;
+        }
+
+        .dropdown-item.active {
+          background: rgba(2, 132, 199, 0.08) !important;
+          color: var(--bps-blue) !important;
         }
 
         .table-search {
@@ -995,22 +1074,24 @@ export default function PotikDetail({ potikId, onBack }) {
             align-items: stretch;
             gap: 1rem;
           }
-          .tabs-buttons {
+          .left-filters {
+            width: 100%;
             display: flex;
-            overflow-x: auto;
-            padding-bottom: 0.5rem;
-            width: 100%;
-            gap: 0.25rem;
-            border-bottom: 1px solid var(--border-color);
-          }
-          .tab-btn {
-            flex-shrink: 0;
-          }
-          .datatable-filters {
-            width: 100%;
-            flex-direction: column;
-            align-items: stretch;
+            align-items: center;
+            justify-content: space-between;
             gap: 0.75rem;
+            flex-wrap: wrap;
+          }
+          .custom-dropdown-container {
+            flex: 1;
+            min-width: 130px;
+          }
+          .dropdown-trigger {
+            width: 100%;
+            justify-content: space-between;
+          }
+          .dropdown-menu {
+            width: 100%;
           }
           .table-search {
             width: 100%;
@@ -1019,7 +1100,8 @@ export default function PotikDetail({ potikId, onBack }) {
             width: 100% !important;
           }
           .date-filter {
-            width: 100%;
+            flex: 2;
+            width: auto;
             justify-content: space-between;
             flex-wrap: wrap;
             gap: 0.5rem;
@@ -1027,6 +1109,19 @@ export default function PotikDetail({ potikId, onBack }) {
           .input-date {
             flex: 1;
             min-width: 100px;
+          }
+        }
+
+        @media (max-width: 576px) {
+          .left-filters {
+            flex-direction: column;
+            align-items: stretch;
+          }
+          .custom-dropdown-container {
+            width: 100%;
+          }
+          .date-filter {
+            width: 100%;
           }
         }
 
