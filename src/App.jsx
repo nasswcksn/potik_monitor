@@ -17,9 +17,9 @@ function App() {
     setActiveTab('potik-detail');
   };
 
-  const handleResetDb = () => {
+  const handleResetDb = async () => {
     if (window.confirm("Apakah Anda yakin ingin menyetel ulang database monitoring ke kondisi awal? Semua data hasil simulasi scraper akan terhapus.")) {
-      resetDatabase();
+      await resetDatabase();
       setSelectedPotikId(null);
       setActiveTab('dashboard');
     }

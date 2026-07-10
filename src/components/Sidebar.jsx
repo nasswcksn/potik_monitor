@@ -18,8 +18,8 @@ export default function Sidebar({ activeTab, setActiveTab, onResetDb, isCollapse
   const [scraperLogsCount, setScraperLogsCount] = useState(0);
 
   // Perbarui status scraper berdasarkan log terbaru
-  const updateScraperStatus = () => {
-    const logs = getScraperLogs();
+  const updateScraperStatus = async () => {
+    const logs = await getScraperLogs();
     setScraperLogsCount(logs.length);
     const successLogs = logs.filter(l => l.type === 'success');
     if (successLogs.length > 0) {
