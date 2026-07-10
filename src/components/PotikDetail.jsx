@@ -953,6 +953,75 @@ export default function PotikDetail({ potikId, onBack }) {
           font-weight: 600;
           border: 1px solid rgba(2, 132, 199, 0.15);
         }
+
+        @media (max-width: 768px) {
+          .profile-header-layout {
+            flex-direction: column;
+            align-items: flex-start !important;
+            gap: 0.75rem;
+          }
+          .profile-info-grid {
+            grid-template-columns: 1fr;
+          }
+          .datatable-tabs {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 1rem;
+          }
+          .tabs-buttons {
+            display: flex;
+            overflow-x: auto;
+            padding-bottom: 0.5rem;
+            width: 100%;
+            gap: 0.25rem;
+            border-bottom: 1px solid var(--border-color);
+          }
+          .tab-btn {
+            flex-shrink: 0;
+          }
+          .datatable-filters {
+            width: 100%;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 0.75rem;
+          }
+          .table-search {
+            width: 100%;
+          }
+          .input-sm {
+            width: 100% !important;
+          }
+          .date-filter {
+            width: 100%;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+          }
+          .input-date {
+            flex: 1;
+            min-width: 100px;
+          }
+          .catalog-card__body {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 1rem;
+          }
+          .catalog-thumb {
+            width: 100%;
+            height: 180px;
+          }
+          .catalog-card__footer {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.5rem;
+          }
+          .catalog-card__meta-right {
+            width: 100%;
+            justify-content: space-between;
+            border-top: 1px dashed var(--border-color);
+            padding-top: 0.5rem;
+          }
+        }
       `}} />
     </div>
   );

@@ -956,6 +956,28 @@ export default function Simulator() {
           color: var(--text-muted);
           text-align: center;
         }
+
+        @media (max-width: 768px) {
+          .simulator-header h1 {
+            font-size: 1.5rem;
+          }
+          .tab-buttons-row {
+            overflow-x: auto;
+            width: 100%;
+            padding-bottom: 0.5rem;
+          }
+          .tab-buttons-row .tab-btn {
+            flex-shrink: 0;
+          }
+          .integration-mode-select {
+            flex-direction: column;
+            gap: 0.5rem;
+          }
+          .json-code {
+            height: 300px;
+            max-height: 300px;
+          }
+        }
       `}} />
     </div>
   );

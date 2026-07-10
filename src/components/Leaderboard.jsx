@@ -441,6 +441,37 @@ export default function Leaderboard({ onSelectPotik }) {
           border-radius: 6px;
           display: inline-block;
         }
+
+        @media (max-width: 768px) {
+          .leaderboard-header h1 {
+            font-size: 1.5rem;
+          }
+          .podium-section {
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+            width: 100%;
+          }
+          .podium-card {
+            width: 100%;
+            max-width: 320px;
+          }
+          .podium-card.rank-1 { height: auto; order: 1; }
+          .podium-card.rank-2 { height: auto; order: 2; }
+          .podium-card.rank-3 { height: auto; order: 3; }
+          
+          .table-header-top {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.75rem;
+          }
+          .table-search {
+            width: 100%;
+          }
+          .table-search input {
+            width: 100% !important;
+          }
+        }
       `}} />
     </div>
   );

@@ -711,6 +711,24 @@ export default function Dashboard({ onSelectPotik, setActiveTab }) {
         .badge-type.video { background: rgba(234, 88, 12, 0.1); color: var(--bps-orange); }
         .badge-type.edukasi { background: rgba(2, 132, 199, 0.1); color: var(--bps-blue); }
         .badge-type.kegiatan { background: rgba(22, 197, 94, 0.1); color: var(--bps-green); }
+
+        @media (max-width: 768px) {
+          .dashboard-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.75rem;
+          }
+          .dashboard-header h1 {
+            font-size: 1.5rem;
+          }
+          .dashboard-header .subtitle {
+            font-size: 0.8rem;
+          }
+          .flex-col {
+            height: auto;
+            min-height: 400px;
+          }
+        }
       `}} />
     </div>
   );

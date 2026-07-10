@@ -495,6 +495,31 @@ export default function PotikList({ onSelectPotik }) {
           height: 200px;
           color: var(--text-secondary);
         }
+
+        @media (max-width: 768px) {
+          .filters-panel {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 1rem;
+          }
+          .search-item {
+            width: 100%;
+            min-width: 100%;
+          }
+          .filter-dropdowns {
+            width: 100%;
+            min-width: 100%;
+            flex-direction: column;
+            gap: 1rem;
+          }
+          .filter-item {
+            width: 100%;
+            min-width: 100%;
+          }
+          .list-header h1 {
+            font-size: 1.5rem;
+          }
+        }
       `}} />
     </div>
   );
