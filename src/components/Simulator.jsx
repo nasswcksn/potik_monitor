@@ -234,7 +234,7 @@ export default function Simulator() {
 
   const checkProxyStatus = async () => {
     try {
-      const res = await fetch('http://localhost:3001/api/fetch');
+      const res = await fetch('/api/fetch');
       if (res.status === 400) {
         setIsProxyOnline(true);
       } else {
@@ -380,7 +380,7 @@ export default function Simulator() {
       bpsBaseUrl += `?university_id=${bpsUniId}`;
     }
     
-    const proxyUrl = `http://localhost:3001/api/fetch?url=${encodeURIComponent(bpsBaseUrl)}`;
+    const proxyUrl = `/api/fetch?url=${encodeURIComponent(bpsBaseUrl)}`;
 
     let cookieHeaderValue = cookieInput.trim();
     // Jika user hanya menempelkan token pojokstatisik_session (tanpa tanda '=' )

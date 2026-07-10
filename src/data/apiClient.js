@@ -101,7 +101,7 @@ const getStoredData = () => {
 // Kirim database terupdate ke proxy lokal jika sedang berjalan untuk disimpan ke file fisik
 const syncDatabaseToFile = async (data) => {
   try {
-    await fetch('http://localhost:3001/api/save-database', {
+    await fetch('/api/save-database', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
