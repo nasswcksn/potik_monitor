@@ -8,12 +8,13 @@ const LOGS_STORAGE_KEY = "bps_potik_scraper_logs";
 const initDatabase = () => {
   const existingData = localStorage.getItem(LOCAL_STORAGE_KEY);
   let needsUpgrade = !existingData;
+  let parsedData = null;
   
   if (existingData) {
     try {
-      const parsed = JSON.parse(existingData);
+      parsedData = JSON.parse(existingData);
       // Upgrade jika panjang data tidak 57, atau data pertama tidak memiliki logo/bps_id
-      if (parsed.length !== 57 || (parsed[0] && (!parsed[0].logo || !parsed[0].bps_id))) {
+      if (parsedData.length !== 57 || (parsedData[0] && (!parsedData[0].logo || !parsedData[0].bps_id))) {
         needsUpgrade = true;
       }
     } catch (e) {
@@ -27,6 +28,56 @@ const initDatabase = () => {
     localStorage.removeItem(LOGS_STORAGE_KEY); // Reset logs agar singkron dengan ID universitas baru
     // Singkronkan ke file fisik potikData.json jika proxy menyala
     setTimeout(() => syncDatabaseToFile(initialData), 500);
+  } else if (parsedData) {
+    // Jalankan migrasi nama region sosiokultural -> Bakorwil formal
+    const cityToBakorwil = {
+      "Pacitan": "Bakorwil I Madiun",
+      "Ngawi": "Bakorwil I Madiun",
+      "Magetan": "Bakorwil I Madiun",
+      "Madiun": "Bakorwil I Madiun",
+      "Nganjuk": "Bakorwil I Madiun",
+      "Trenggalek": "Bakorwil I Madiun",
+      "Ponorogo": "Bakorwil I Madiun",
+      "Kediri": "Bakorwil I Madiun",
+      "Tulungagung": "Bakorwil I Madiun",
+      "Bojonegoro": "Bakorwil II Bojonegoro",
+      "Tuban": "Bakorwil II Bojonegoro",
+      "Lamongan": "Bakorwil II Bojonegoro",
+      "Jombang": "Bakorwil II Bojonegoro",
+      "Mojokerto": "Bakorwil II Bojonegoro",
+      "Gresik": "Bakorwil II Bojonegoro",
+      "Surabaya": "Bakorwil III Malang",
+      "Sidoarjo": "Bakorwil III Malang",
+      "Malang": "Bakorwil III Malang",
+      "Pasuruan": "Bakorwil III Malang",
+      "Blitar": "Bakorwil III Malang",
+      "Bangkalan": "Bakorwil IV Pamekasan",
+      "Sampang": "Bakorwil IV Pamekasan",
+      "Pamekasan": "Bakorwil IV Pamekasan",
+      "Sumenep": "Bakorwil IV Pamekasan",
+      "Jember": "Bakorwil V Jember",
+      "Lumajang": "Bakorwil V Jember",
+      "Bondowoso": "Bakorwil V Jember",
+      "Situbondo": "Bakorwil V Jember",
+      "Probolinggo": "Bakorwil V Jember",
+      "Banyuwangi": "Bakorwil V Jember"
+    };
+
+    let hasChanges = false;
+    const migratedData = parsedData.map(uni => {
+      const formalRegion = cityToBakorwil[uni.city];
+      if (formalRegion && uni.region !== formalRegion) {
+        hasChanges = true;
+        return { ...uni, region: formalRegion };
+      }
+      return uni;
+    });
+
+    if (hasChanges) {
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(migratedData));
+      setTimeout(() => syncDatabaseToFile(migratedData), 500);
+      console.log("[apiClient] LocalStorage region database successfully migrated to Bakorwil!");
+    }
   }
 
   const existingLogs = localStorage.getItem(LOGS_STORAGE_KEY);
@@ -118,8 +169,8 @@ export const fetchPotikDetail = (id) => {
 };
 
 // 3. Fetch DataTables Server-Side (Simulasi endpoint /adminpsbe/{type}/datatable)
-// Mendukung pagination (start, length) dan pencarian (searchQuery)
-export const fetchDatatable = (type, universityId, draw = 1, start = 0, length = 10, searchQuery = "") => {
+// Mendukung pagination (start, length), pencarian (searchQuery), dan rentang tanggal (startDate, endDate)
+export const fetchDatatable = (type, universityId, draw = 1, start = 0, length = 10, searchQuery = "", startDate = null, endDate = null) => {
   return new Promise((resolve, reject) => {
     setTimeout(() => {
       const data = getStoredData();
@@ -143,8 +194,29 @@ export const fetchDatatable = (type, universityId, draw = 1, start = 0, length =
         );
       }
 
+      // Filter berdasarkan rentang tanggal jika ada
+      if (startDate || endDate) {
+        const startMs = startDate ? new Date(startDate + "T00:00:00").getTime() : null;
+        const endMs = endDate ? new Date(endDate + "T23:59:59").getTime() : null;
+
+        filteredData = filteredData.filter(item => {
+          const itemDateStr = item.created_at || item.date;
+          if (!itemDateStr) return true;
+          // Format standard ISO agar kompatibel di semua engine JS
+          const formattedDateStr = itemDateStr.includes(' ') 
+            ? itemDateStr.replace(' ', 'T') 
+            : itemDateStr + "T12:00:00";
+          const itemMs = new Date(formattedDateStr).getTime();
+          
+          if (isNaN(itemMs)) return true;
+          if (startMs && itemMs < startMs) return false;
+          if (endMs && itemMs > endMs) return false;
+          return true;
+        });
+      }
+
       // Urutkan berdasarkan created_at desc
-      filteredData.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      filteredData.sort((a, b) => new Date(b.created_at.replace(' ', 'T')) - new Date(a.created_at.replace(' ', 'T')));
 
       // Potong data sesuai pagination
       const paginatedData = filteredData.slice(start, start + length);

@@ -83,7 +83,7 @@ export default function PotikList({ onSelectPotik }) {
   };
 
   // List of regions in East Java BPS
-  const regions = ["All", "Surabaya Metropolitan", "Malang Raya", "Tapal Kuda", "Mataraman", "Madura"];
+  const regions = ["All", "Bakorwil I Madiun", "Bakorwil II Bojonegoro", "Bakorwil III Malang", "Bakorwil IV Pamekasan", "Bakorwil V Jember"];
 
   return (
     <div className="potik-list-view animate-fade-in">
@@ -95,15 +95,17 @@ export default function PotikList({ onSelectPotik }) {
 
       {/* Search & Filters */}
       <div className="filters-panel glass-card">
-        <div className="search-box">
-          <Search size={18} className="search-icon" />
-          <input 
-            type="text" 
-            placeholder="Cari berdasarkan nama kampus, universitas, atau kota..." 
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="input-control"
-          />
+        <div className="filter-item search-item">
+          <label><Search size={12} /> Pencarian Kampus</label>
+          <div className="search-box-wrapper">
+            <input 
+              type="text" 
+              placeholder="Cari berdasarkan nama universitas, atau kota..." 
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="input-control"
+            />
+          </div>
         </div>
 
         <div className="filter-dropdowns">
@@ -268,34 +270,34 @@ export default function PotikList({ onSelectPotik }) {
 
         .filters-panel {
           display: flex;
-          gap: 1.5rem;
+          gap: 1.25rem;
           padding: 1.25rem;
-          align-items: center;
+          align-items: flex-end;
           flex-wrap: wrap;
         }
 
-        .search-box {
-          position: relative;
-          flex: 1;
+        .search-item {
+          flex: 2;
           min-width: 300px;
+          display: flex;
+          flex-direction: column;
+          gap: 0.35rem;
         }
 
-        .search-box input {
+        .search-box-wrapper {
+          position: relative;
           width: 100%;
-          padding-left: 2.75rem;
         }
 
-        .search-icon {
-          position: absolute;
-          left: 1rem;
-          top: 50%;
-          transform: translateY(-50%);
-          color: var(--text-secondary);
+        .search-box-wrapper input {
+          width: 100%;
         }
 
         .filter-dropdowns {
           display: flex;
-          gap: 1.5rem;
+          gap: 1.25rem;
+          flex: 3;
+          min-width: 360px;
           flex-wrap: wrap;
         }
 
@@ -303,6 +305,8 @@ export default function PotikList({ onSelectPotik }) {
           display: flex;
           flex-direction: column;
           gap: 0.35rem;
+          flex: 1;
+          min-width: 170px;
         }
 
         .filter-item label {
@@ -382,11 +386,11 @@ export default function PotikList({ onSelectPotik }) {
         }
 
         /* Color Coding avatar based on geographic regions */
-        .uni-logo-avatar.surabaya-metropolitan { background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); }
-        .uni-logo-avatar.malang-raya { background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%); }
-        .uni-logo-avatar.tapal-kuda { background: linear-gradient(135deg, #10b981 0%, #047857 100%); }
-        .uni-logo-avatar.mataraman { background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%); }
-        .uni-logo-avatar.madura { background: linear-gradient(135deg, #a855f7 0%, #7e22ce 100%); }
+        .uni-logo-avatar.bakorwil-i-madiun { background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); }
+        .uni-logo-avatar.bakorwil-ii-bojonegoro { background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); }
+        .uni-logo-avatar.bakorwil-iii-malang { background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%); }
+        .uni-logo-avatar.bakorwil-iv-pamekasan { background: linear-gradient(135deg, #a855f7 0%, #7e22ce 100%); }
+        .uni-logo-avatar.bakorwil-v-jember { background: linear-gradient(135deg, #10b981 0%, #047857 100%); }
 
         .uni-titles h3 {
           font-size: 0.95rem;

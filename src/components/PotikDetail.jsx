@@ -40,6 +40,8 @@ export default function PotikDetail({ potikId, onBack }) {
   const [start, setStart] = useState(0);
   const [length] = useState(5); // 5 Baris per halaman
   const [isLoading, setIsLoading] = useState(false);
+  const [startDate, setStartDate] = useState("2025-08-01");
+  const [endDate, setEndDate] = useState("2026-07-31");
 
   // Lightbox modal state
   const [selectedMedia, setSelectedMedia] = useState(null);
@@ -56,7 +58,7 @@ export default function PotikDetail({ potikId, onBack }) {
   const loadTableData = async () => {
     setIsLoading(true);
     try {
-      const res = await fetchDatatable(activeSubTab, potikId, 1, start, length, search);
+      const res = await fetchDatatable(activeSubTab, potikId, 1, start, length, search, startDate, endDate);
       setTableData(res.data);
       setTotalRecords(res.recordsFiltered);
     } catch (err) {
@@ -77,12 +79,12 @@ export default function PotikDetail({ potikId, onBack }) {
     return () => {
       window.removeEventListener("bps_potik_db_updated", handleDbUpdate);
     };
-  }, [potikId, activeSubTab, start, search]);
+  }, [potikId, activeSubTab, start, search, startDate, endDate]);
 
   useEffect(() => {
-    setStart(0); // Reset ke page 1 jika tab/pencarian berubah
+    setStart(0); // Reset ke page 1 jika tab/pencarian/tanggal berubah
     loadTableData();
-  }, [activeSubTab, search, potikId]);
+  }, [activeSubTab, search, startDate, endDate, potikId]);
 
   useEffect(() => {
     loadTableData();
@@ -245,16 +247,39 @@ export default function PotikDetail({ potikId, onBack }) {
               </button>
             </div>
             
-            {/* Search Input */}
-            <div className="table-search">
-              <Search size={14} className="search-icon-sm" />
-              <input 
-                type="text" 
-                placeholder="Cari konten..." 
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="input-control input-sm"
-              />
+            {/* Filter controls: Date Range + Search */}
+            <div className="datatable-filters flex-gap-3 flex-wrap" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+              {/* Search Input */}
+              <div className="table-search">
+                <Search size={14} className="search-icon-sm" />
+                <input 
+                  type="text" 
+                  placeholder="Cari konten..." 
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="input-control input-sm"
+                />
+              </div>
+
+              {/* Date Filter */}
+              <div className="date-filter flex-gap-2" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                <span>Periode:</span>
+                <input 
+                  type="date" 
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="input-control input-date"
+                  style={{ padding: '0.35rem 0.5rem', borderRadius: '6px', fontSize: '0.75rem', width: '130px', outline: 'none', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
+                />
+                <span>s/d</span>
+                <input 
+                  type="date" 
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="input-control input-date"
+                  style={{ padding: '0.35rem 0.5rem', borderRadius: '6px', fontSize: '0.75rem', width: '130px', outline: 'none', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
+                />
+              </div>
             </div>
           </div>
 
