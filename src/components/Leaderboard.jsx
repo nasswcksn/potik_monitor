@@ -8,7 +8,9 @@ import {
   Video, 
   BookOpen, 
   Users, 
-  Star 
+  Star,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { fetchPotikList } from '../data/apiClient';
@@ -19,6 +21,12 @@ export default function Leaderboard({ onSelectPotik }) {
   const [search, setSearch] = useState("");
   const [sortField, setSortField] = useState("engagementScore");
   const [sortDirection, setSortDirection] = useState("desc");
+  const [start, setStart] = useState(0);
+  const [length, setLength] = useState(10); // Limit 1-10 (default 10 baris)
+
+  useEffect(() => {
+    setStart(0);
+  }, [search, sortField, sortDirection]);
 
   const loadData = async () => {
     try {
@@ -213,7 +221,7 @@ export default function Leaderboard({ onSelectPotik }) {
               </tr>
             </thead>
             <tbody>
-              {filteredPotiks.map((uni, idx) => {
+              {filteredPotiks.slice(start, start + length).map((uni, idx) => {
                 // Cari index asli untuk rank aktual
                 const originalRank = potiks.findIndex(p => p.id === uni.id) + 1;
                 
@@ -252,6 +260,53 @@ export default function Leaderboard({ onSelectPotik }) {
             </tbody>
           </table>
         </div>
+
+        {/* DataTable Pagination */}
+        {filteredPotiks.length > 0 && (
+          <div className="datatable-pagination flex-between border-top" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)', fontSize: '0.75rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+            <div className="flex-gap-3" style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+              <span className="pagination-info" style={{ color: 'var(--text-secondary)' }}>
+                Menampilkan <b>{start + 1}</b> - <b>{Math.min(start + length, filteredPotiks.length)}</b> dari <b>{filteredPotiks.length}</b> data
+              </span>
+              
+              {/* Limit Selector */}
+              <div className="limit-selector flex-gap-2" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text-secondary)' }}>
+                <span>Tampilkan:</span>
+                <select 
+                  value={length} 
+                  onChange={(e) => { setLength(parseInt(e.target.value)); setStart(0); }}
+                  className="input-control"
+                  style={{ padding: '0.25rem 0.5rem', borderRadius: '6px', fontSize: '0.75rem', cursor: 'pointer', outline: 'none', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
+                >
+                  <option value={5}>5 baris</option>
+                  <option value={10}>10 baris</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="pagination-buttons flex-gap-2" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <button 
+                className="btn btn-secondary btn-pagination" 
+                onClick={() => { if (start - length >= 0) setStart(start - length); }} 
+                disabled={start === 0}
+                style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem' }}
+              >
+                <ChevronLeft size={16} /> Prev
+              </button>
+              <span className="page-number" style={{ color: 'var(--text-primary)', alignSelf: 'center' }}>
+                Page {Math.floor(start / length) + 1} of {Math.ceil(filteredPotiks.length / length) || 1}
+              </span>
+              <button 
+                className="btn btn-secondary btn-pagination" 
+                onClick={() => { if (start + length < filteredPotiks.length) setStart(start + length); }} 
+                disabled={start + length >= filteredPotiks.length}
+                style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem' }}
+              >
+                Next <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <style dangerouslySetInnerHTML={{__html: `

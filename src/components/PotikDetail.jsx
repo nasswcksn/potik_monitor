@@ -38,7 +38,7 @@ export default function PotikDetail({ potikId, onBack }) {
   const [totalRecords, setTotalRecords] = useState(0);
   const [search, setSearch] = useState("");
   const [start, setStart] = useState(0);
-  const [length] = useState(5); // 5 Baris per halaman
+  const [length, setLength] = useState(5); // Baris per halaman
   const [isLoading, setIsLoading] = useState(false);
   const [startDate, setStartDate] = useState("2025-08-01");
   const [endDate, setEndDate] = useState("2026-07-31");
@@ -79,16 +79,15 @@ export default function PotikDetail({ potikId, onBack }) {
     return () => {
       window.removeEventListener("bps_potik_db_updated", handleDbUpdate);
     };
-  }, [potikId, activeSubTab, start, search, startDate, endDate]);
+  }, [potikId, activeSubTab, start, search, startDate, endDate, length]);
 
   useEffect(() => {
-    setStart(0); // Reset ke page 1 jika tab/pencarian/tanggal berubah
-    loadTableData();
-  }, [activeSubTab, search, startDate, endDate, potikId]);
+    setStart(0); // Reset ke page 1 jika tab/pencarian/tanggal/limit berubah
+  }, [activeSubTab, search, startDate, endDate, potikId, length]);
 
   useEffect(() => {
     loadTableData();
-  }, [start]);
+  }, [start, length, activeSubTab, search, startDate, endDate, potikId]);
 
   if (!potik) {
     return <div className="glass-card flex-center empty-state">Memuat data detail...</div>;
@@ -248,7 +247,7 @@ export default function PotikDetail({ potikId, onBack }) {
             </div>
             
             {/* Filter controls: Date Range + Search */}
-            <div className="datatable-filters flex-gap-3 flex-wrap" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <div className="datatable-filters flex-gap-3" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               {/* Search Input */}
               <div className="table-search">
                 <Search size={14} className="search-icon-sm" />
@@ -269,7 +268,6 @@ export default function PotikDetail({ potikId, onBack }) {
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
                   className="input-control input-date"
-                  style={{ padding: '0.35rem 0.5rem', borderRadius: '6px', fontSize: '0.75rem', width: '130px', outline: 'none', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
                 />
                 <span>s/d</span>
                 <input 
@@ -277,7 +275,6 @@ export default function PotikDetail({ potikId, onBack }) {
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
                   className="input-control input-date"
-                  style={{ padding: '0.35rem 0.5rem', borderRadius: '6px', fontSize: '0.75rem', width: '130px', outline: 'none', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
                 />
               </div>
             </div>
@@ -363,9 +360,26 @@ export default function PotikDetail({ potikId, onBack }) {
           {/* DataTable Pagination */}
           {totalRecords > 0 && (
             <div className="datatable-pagination flex-between border-top">
-              <span className="pagination-info">
-                Menampilkan <b>{start + 1}</b> - <b>{Math.min(start + length, totalRecords)}</b> dari <b>{totalRecords}</b> data
-              </span>
+              <div className="flex-gap-3" style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                <span className="pagination-info">
+                  Menampilkan <b>{start + 1}</b> - <b>{Math.min(start + length, totalRecords)}</b> dari <b>{totalRecords}</b> data
+                </span>
+                
+                {/* Limit Selector */}
+                <div className="limit-selector flex-gap-2" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                  <span>Tampilkan:</span>
+                  <select 
+                    value={length} 
+                    onChange={(e) => { setLength(parseInt(e.target.value)); setStart(0); }}
+                    className="input-control select-control"
+                    style={{ padding: '0.25rem 0.5rem', borderRadius: '6px', fontSize: '0.75rem', cursor: 'pointer', outline: 'none', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
+                  >
+                    <option value={5}>5 baris</option>
+                    <option value={10}>10 baris</option>
+                  </select>
+                </div>
+              </div>
+
               <div className="pagination-buttons flex-gap-2">
                 <button 
                   className="btn btn-secondary btn-pagination" 
@@ -625,6 +639,27 @@ export default function PotikDetail({ potikId, onBack }) {
           font-size: 0.8rem;
           border-radius: 6px;
           width: 180px;
+          height: 36px;
+          box-sizing: border-box;
+        }
+
+        .input-date {
+          padding: 0.45rem 0.75rem;
+          font-size: 0.8rem;
+          border-radius: 6px;
+          width: 130px;
+          height: 36px;
+          box-sizing: border-box;
+          background: var(--bg-secondary);
+          color: var(--text-primary);
+          border: 1px solid var(--border-color);
+          transition: var(--transition-fast);
+          outline: none;
+        }
+
+        .input-date:focus {
+          border-color: var(--bps-blue);
+          box-shadow: 0 0 0 3px var(--border-glow);
         }
 
         .datatable-wrapper {
@@ -954,15 +989,7 @@ export default function PotikDetail({ potikId, onBack }) {
           border: 1px solid rgba(2, 132, 199, 0.15);
         }
 
-        @media (max-width: 768px) {
-          .profile-header-layout {
-            flex-direction: column;
-            align-items: flex-start !important;
-            gap: 0.75rem;
-          }
-          .profile-info-grid {
-            grid-template-columns: 1fr;
-          }
+        @media (max-width: 1024px) {
           .datatable-tabs {
             flex-direction: column;
             align-items: stretch;
@@ -1000,6 +1027,17 @@ export default function PotikDetail({ potikId, onBack }) {
           .input-date {
             flex: 1;
             min-width: 100px;
+          }
+        }
+
+        @media (max-width: 768px) {
+          .profile-header-layout {
+            flex-direction: column;
+            align-items: flex-start !important;
+            gap: 0.75rem;
+          }
+          .profile-info-grid {
+            grid-template-columns: 1fr;
           }
           .catalog-card__body {
             flex-direction: column;
