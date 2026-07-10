@@ -1,101 +1,167 @@
 import { getInitialPotikData } from './potikData';
 
-// Kunci LocalStorage untuk database Pojok Statistik
-const LOCAL_STORAGE_KEY = "bps_potik_monitoring_db";
-const LOGS_STORAGE_KEY = "bps_potik_scraper_logs";
+// IndexedDB Helper Functions
+const DB_NAME = 'BpsPotikMonitoringDB';
+const DB_VERSION = 1;
+const STORE_NAME = 'potik_store';
+const KEY_NAME = 'database';
+const LOGS_KEY_NAME = 'logs';
 
-// Inisialisasi Database ke LocalStorage jika belum ada
-const initDatabase = () => {
-  const existingData = localStorage.getItem(LOCAL_STORAGE_KEY);
-  let needsUpgrade = !existingData;
-  let parsedData = null;
+const openDB = () => {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    request.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME);
+      }
+    };
+    request.onsuccess = (e) => resolve(e.target.result);
+    request.onerror = (e) => reject(e.target.error);
+  });
+};
+
+const idbGet = async (key) => {
+  try {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(STORE_NAME, 'readonly');
+      const store = transaction.objectStore(STORE_NAME);
+      const request = store.get(key);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  } catch (err) {
+    console.error("IndexedDB get error:", err);
+    return null;
+  }
+};
+
+const idbSet = async (key, val) => {
+  try {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(STORE_NAME, 'readwrite');
+      const store = transaction.objectStore(STORE_NAME);
+      const request = store.put(val, key);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  } catch (err) {
+    console.error("IndexedDB set error:", err);
+  }
+};
+
+// Region Migration Helper
+const runRegionMigration = (data) => {
+  const cityToBakorwil = {
+    "Pacitan": "Bakorwil I Madiun",
+    "Ngawi": "Bakorwil I Madiun",
+    "Magetan": "Bakorwil I Madiun",
+    "Madiun": "Bakorwil I Madiun",
+    "Nganjuk": "Bakorwil I Madiun",
+    "Trenggalek": "Bakorwil I Madiun",
+    "Ponorogo": "Bakorwil I Madiun",
+    "Kediri": "Bakorwil I Madiun",
+    "Tulungagung": "Bakorwil I Madiun",
+    "Bojonegoro": "Bakorwil II Bojonegoro",
+    "Tuban": "Bakorwil II Bojonegoro",
+    "Lamongan": "Bakorwil II Bojonegoro",
+    "Jombang": "Bakorwil II Bojonegoro",
+    "Mojokerto": "Bakorwil II Bojonegoro",
+    "Gresik": "Bakorwil II Bojonegoro",
+    "Surabaya": "Bakorwil III Malang",
+    "Sidoarjo": "Bakorwil III Malang",
+    "Malang": "Bakorwil III Malang",
+    "Pasuruan": "Bakorwil III Malang",
+    "Blitar": "Bakorwil III Malang",
+    "Bangkalan": "Bakorwil IV Pamekasan",
+    "Sampang": "Bakorwil IV Pamekasan",
+    "Pamekasan": "Bakorwil IV Pamekasan",
+    "Sumenep": "Bakorwil IV Pamekasan",
+    "Jember": "Bakorwil V Jember",
+    "Lumajang": "Bakorwil V Jember",
+    "Bondowoso": "Bakorwil V Jember",
+    "Situbondo": "Bakorwil V Jember",
+    "Probolinggo": "Bakorwil V Jember",
+    "Banyuwangi": "Bakorwil V Jember"
+  };
+
+  let hasChanges = false;
+  const migratedData = data.map(uni => {
+    const formalRegion = cityToBakorwil[uni.city];
+    if (formalRegion && uni.region !== formalRegion) {
+      hasChanges = true;
+      return { ...uni, region: formalRegion };
+    }
+    return uni;
+  });
+
+  return { migratedData, hasChanges };
+};
+
+// Helper untuk membaca dari IndexedDB
+const getStoredData = async () => {
+  let data = await idbGet(KEY_NAME);
+  let needsUpgrade = !data;
   
-  if (existingData) {
+  if (data) {
+    if (data.length !== 57 || (data[0] && (!data[0].logo || !data[0].bps_id))) {
+      needsUpgrade = true;
+    }
+  }
+  
+  // Coba migrasi data dari LocalStorage lama ke IndexedDB jika ada
+  const localData = localStorage.getItem('bps_potik_monitoring_db');
+  if (localData && needsUpgrade) {
     try {
-      parsedData = JSON.parse(existingData);
-      // Upgrade jika panjang data tidak 57, atau data pertama tidak memiliki logo/bps_id
-      if (parsedData.length !== 57 || (parsedData[0] && (!parsedData[0].logo || !parsedData[0].bps_id))) {
-        needsUpgrade = true;
+      const parsedLocal = JSON.parse(localData);
+      if (parsedLocal && parsedLocal.length === 57) {
+        data = parsedLocal;
+        needsUpgrade = false;
+        const { migratedData } = runRegionMigration(data);
+        data = migratedData;
+        await idbSet(KEY_NAME, data);
+        console.log("[apiClient] Berhasil memindahkan database lama dari LocalStorage ke IndexedDB!");
+
+        const localLogs = localStorage.getItem('bps_potik_scraper_logs') || localStorage.getItem('bps_potik_monitoring_logs');
+        if (localLogs) {
+          try {
+            await idbSet(LOGS_KEY_NAME, JSON.parse(localLogs));
+          } catch (e) {}
+        }
+        
+        // Hapus data lama di LocalStorage untuk mengosongkan kuota 5MB
+        localStorage.removeItem('bps_potik_monitoring_db');
+        localStorage.removeItem('bps_potik_scraper_logs');
+        localStorage.removeItem('bps_potik_monitoring_logs');
       }
     } catch (e) {
-      needsUpgrade = true;
+      console.error("[apiClient] Gagal memindahkan database dari LocalStorage:", e);
     }
   }
 
   if (needsUpgrade) {
-    const initialData = getInitialPotikData();
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(initialData));
-    localStorage.removeItem(LOGS_STORAGE_KEY); // Reset logs agar singkron dengan ID universitas baru
-    // Singkronkan ke file fisik potikData.json jika proxy menyala
-    setTimeout(() => syncDatabaseToFile(initialData), 500);
-  } else if (parsedData) {
-    // Jalankan migrasi nama region sosiokultural -> Bakorwil formal
-    const cityToBakorwil = {
-      "Pacitan": "Bakorwil I Madiun",
-      "Ngawi": "Bakorwil I Madiun",
-      "Magetan": "Bakorwil I Madiun",
-      "Madiun": "Bakorwil I Madiun",
-      "Nganjuk": "Bakorwil I Madiun",
-      "Trenggalek": "Bakorwil I Madiun",
-      "Ponorogo": "Bakorwil I Madiun",
-      "Kediri": "Bakorwil I Madiun",
-      "Tulungagung": "Bakorwil I Madiun",
-      "Bojonegoro": "Bakorwil II Bojonegoro",
-      "Tuban": "Bakorwil II Bojonegoro",
-      "Lamongan": "Bakorwil II Bojonegoro",
-      "Jombang": "Bakorwil II Bojonegoro",
-      "Mojokerto": "Bakorwil II Bojonegoro",
-      "Gresik": "Bakorwil II Bojonegoro",
-      "Surabaya": "Bakorwil III Malang",
-      "Sidoarjo": "Bakorwil III Malang",
-      "Malang": "Bakorwil III Malang",
-      "Pasuruan": "Bakorwil III Malang",
-      "Blitar": "Bakorwil III Malang",
-      "Bangkalan": "Bakorwil IV Pamekasan",
-      "Sampang": "Bakorwil IV Pamekasan",
-      "Pamekasan": "Bakorwil IV Pamekasan",
-      "Sumenep": "Bakorwil IV Pamekasan",
-      "Jember": "Bakorwil V Jember",
-      "Lumajang": "Bakorwil V Jember",
-      "Bondowoso": "Bakorwil V Jember",
-      "Situbondo": "Bakorwil V Jember",
-      "Probolinggo": "Bakorwil V Jember",
-      "Banyuwangi": "Bakorwil V Jember"
-    };
-
-    let hasChanges = false;
-    const migratedData = parsedData.map(uni => {
-      const formalRegion = cityToBakorwil[uni.city];
-      if (formalRegion && uni.region !== formalRegion) {
-        hasChanges = true;
-        return { ...uni, region: formalRegion };
-      }
-      return uni;
-    });
-
-    if (hasChanges) {
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(migratedData));
-      setTimeout(() => syncDatabaseToFile(migratedData), 500);
-      console.log("[apiClient] LocalStorage region database successfully migrated to Bakorwil!");
-    }
-  }
-
-  const existingLogs = localStorage.getItem(LOGS_STORAGE_KEY);
-  if (!existingLogs) {
-    const initialLogs = [
+    data = getInitialPotikData();
+    const { migratedData } = runRegionMigration(data);
+    data = migratedData;
+    await idbSet(KEY_NAME, data);
+    await idbSet(LOGS_KEY_NAME, [
       { timestamp: new Date(Date.now() - 3600000 * 3).toLocaleString('id-ID'), type: "info", message: "Scraper System Initialized. Checking 57 Pojok Statistik endpoints..." },
       { timestamp: new Date(Date.now() - 3600000 * 2).toLocaleString('id-ID'), type: "success", message: "Scrape successful for university_id=7 (ITS). Token: eyJpdiI6IklxeHl... Added 2 new infographics." },
       { timestamp: new Date(Date.now() - 3600000 * 1).toLocaleString('id-ID'), type: "success", message: "Scrape successful for university_id=25 (UB). Token: eyJpdiI6Ik91YW... 1 activity validated." }
-    ];
-    localStorage.setItem(LOGS_STORAGE_KEY, JSON.stringify(initialLogs));
+    ]);
+    setTimeout(() => syncDatabaseToFile(data), 500);
+  } else {
+    const { migratedData, hasChanges } = runRegionMigration(data);
+    if (hasChanges) {
+      data = migratedData;
+      await idbSet(KEY_NAME, data);
+      setTimeout(() => syncDatabaseToFile(data), 500);
+      console.log("[apiClient] IndexedDB region database successfully migrated to Bakorwil!");
+    }
   }
-};
-
-initDatabase();
-
-// Helper untuk membaca dari LocalStorage
-const getStoredData = () => {
-  return JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY));
+  return data;
 };
 
 // Kirim database terupdate ke proxy lokal jika sedang berjalan untuk disimpan ke file fisik
@@ -114,9 +180,9 @@ const syncDatabaseToFile = async (data) => {
   }
 };
 
-// Helper untuk menulis ke LocalStorage
-const setStoredData = (data) => {
-  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
+// Helper untuk menulis ke IndexedDB
+const setStoredData = async (data) => {
+  await idbSet(KEY_NAME, data);
   // Dispatch event agar component lain tahu ada perubahan data
   window.dispatchEvent(new Event("bps_potik_db_updated"));
   // Singkronkan ke file fisik potikData.json jika proxy menyala
@@ -124,13 +190,22 @@ const setStoredData = (data) => {
 };
 
 // Helper untuk membaca Logs
-export const getScraperLogs = () => {
-  return JSON.parse(localStorage.getItem(LOGS_STORAGE_KEY)) || [];
+export const getScraperLogs = async () => {
+  let logs = await idbGet(LOGS_KEY_NAME);
+  if (!logs) {
+    logs = [
+      { timestamp: new Date(Date.now() - 3600000 * 3).toLocaleString('id-ID'), type: "info", message: "Scraper System Initialized. Checking 57 Pojok Statistik endpoints..." },
+      { timestamp: new Date(Date.now() - 3600000 * 2).toLocaleString('id-ID'), type: "success", message: "Scrape successful for university_id=7 (ITS). Token: eyJpdiI6IklxeHl... Added 2 new infographics." },
+      { timestamp: new Date(Date.now() - 3600000 * 1).toLocaleString('id-ID'), type: "success", message: "Scrape successful for university_id=25 (UB). Token: eyJpdiI6Ik91YW... 1 activity validated." }
+    ];
+    await idbSet(LOGS_KEY_NAME, logs);
+  }
+  return logs;
 };
 
 // Helper untuk menulis Logs (diexport agar Simulator bisa mencatat awal fetch)
-export const addScraperLog = (type, message) => {
-  const logs = getScraperLogs();
+export const addScraperLog = async (type, message) => {
+  const logs = await getScraperLogs();
   logs.unshift({
     timestamp: new Date().toLocaleString('id-ID'),
     type,
@@ -138,7 +213,7 @@ export const addScraperLog = (type, message) => {
   });
   // Batasi log maksimal 50
   if (logs.length > 50) logs.pop();
-  localStorage.setItem(LOGS_STORAGE_KEY, JSON.stringify(logs));
+  await idbSet(LOGS_KEY_NAME, logs);
   window.dispatchEvent(new Event("bps_potik_logs_updated"));
 };
 
@@ -146,18 +221,18 @@ export const addScraperLog = (type, message) => {
 
 // 1. Fetch seluruh daftar universitas (Potik)
 export const fetchPotikList = () => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve(getStoredData());
+  return new Promise(async (resolve) => {
+    setTimeout(async () => {
+      resolve(await getStoredData());
     }, 200); // Simulasi delay network
   });
 };
 
 // 2. Fetch detail universitas berdasarkan ID
 export const fetchPotikDetail = (id) => {
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      const data = getStoredData();
+  return new Promise(async (resolve, reject) => {
+    setTimeout(async () => {
+      const data = await getStoredData();
       const potik = data.find(p => p.id === parseInt(id));
       if (potik) {
         resolve(potik);
@@ -169,11 +244,10 @@ export const fetchPotikDetail = (id) => {
 };
 
 // 3. Fetch DataTables Server-Side (Simulasi endpoint /adminpsbe/{type}/datatable)
-// Mendukung pagination (start, length), pencarian (searchQuery), dan rentang tanggal (startDate, endDate)
 export const fetchDatatable = (type, universityId, draw = 1, start = 0, length = 10, searchQuery = "", startDate = null, endDate = null) => {
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      const data = getStoredData();
+  return new Promise(async (resolve, reject) => {
+    setTimeout(async () => {
+      const data = await getStoredData();
       const potik = data.find(p => p.id === parseInt(universityId));
       
       if (!potik) {
@@ -202,7 +276,6 @@ export const fetchDatatable = (type, universityId, draw = 1, start = 0, length =
         filteredData = filteredData.filter(item => {
           const itemDateStr = item.created_at || item.date;
           if (!itemDateStr) return true;
-          // Format standard ISO agar kompatibel di semua engine JS
           const formattedDateStr = itemDateStr.includes(' ') 
             ? itemDateStr.replace(' ', 'T') 
             : itemDateStr + "T12:00:00";
@@ -233,13 +306,12 @@ export const fetchDatatable = (type, universityId, draw = 1, start = 0, length =
 
 // 4. Fetch Global Feed (Timeline aktivitas terbaru dari semua Potik)
 export const fetchLatestFeed = (limit = 10) => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const data = getStoredData();
+  return new Promise(async (resolve) => {
+    setTimeout(async () => {
+      const data = await getStoredData();
       const allFeed = [];
 
       data.forEach(potik => {
-        // Ambil dari infografis, video, edukasi, dan kegiatan
         ['infografis', 'video', 'edukasi', 'kegiatan'].forEach(type => {
           const items = potik.contents[type] || [];
           items.forEach(item => {
@@ -268,11 +340,10 @@ export const fetchLatestFeed = (limit = 10) => {
 };
 
 // 5. Reset Database ke awal (Kosongkan seluruh konten untuk testing scraping)
-export const resetDatabase = () => {
+export const resetDatabase = async () => {
   const initialData = getInitialPotikData();
-  
-  // Petakan data dasar universitas (logo, nama, koordinat, mou, bps_id) tapi kosongkan kontennya
-  const emptyData = initialData.map(uni => {
+  const { migratedData } = runRegionMigration(initialData);
+  const emptyData = migratedData.map(uni => {
     return {
       ...uni,
       status: "Perlu Tindak Lanjut",
@@ -293,14 +364,12 @@ export const resetDatabase = () => {
     };
   });
   
-  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(emptyData));
-  localStorage.removeItem(LOGS_STORAGE_KEY);
+  await idbSet(KEY_NAME, emptyData);
   
-  // Tulis logs inisiasi kosong
   const initialLogs = [
     { timestamp: new Date().toLocaleString('id-ID'), type: "info", message: "Database has been cleared. Slate is clean. Ready for scraping tests!" }
   ];
-  localStorage.setItem(LOGS_STORAGE_KEY, JSON.stringify(initialLogs));
+  await idbSet(LOGS_KEY_NAME, initialLogs);
   
   window.dispatchEvent(new Event("bps_potik_db_updated"));
   window.dispatchEvent(new Event("bps_potik_logs_updated"));
@@ -313,8 +382,8 @@ export const resetDatabase = () => {
 
 // Simulasi suntikan data baru oleh scraper ke perguruan tinggi tertentu
 export const triggerScrapeSimulation = (universityId, contentType) => {
-  return new Promise((resolve, reject) => {
-    const data = getStoredData();
+  return new Promise(async (resolve, reject) => {
+    const data = await getStoredData();
     const potikIdx = data.findIndex(p => p.id === parseInt(universityId));
     
     if (potikIdx === -1) {
@@ -323,7 +392,6 @@ export const triggerScrapeSimulation = (universityId, contentType) => {
     }
 
     const potik = data[potikIdx];
-    const typeLabel = contentType.charAt(0).toUpperCase() + contentType.slice(1);
     
     // Siapkan judul & isi simulasi baru
     const randomNum = Math.floor(Math.random() * 1000);
@@ -365,7 +433,6 @@ export const triggerScrapeSimulation = (universityId, contentType) => {
     potik.contentsCount.total += 1;
     
     // Perbarui Engagement Score
-    // Infografis = 4, Video = 6, Edukasi = 3, Kegiatan = 8
     let points = 4;
     if (contentType === "video") points = 6;
     else if (contentType === "edukasi") points = 3;
@@ -380,10 +447,10 @@ export const triggerScrapeSimulation = (universityId, contentType) => {
 
     // Simpan kembali
     data[potikIdx] = potik;
-    setStoredData(data);
+    await setStoredData(data);
 
     // Tambahkan log scraper
-    addScraperLog("success", `Scraper successfully extracted 1 new ${contentType} for "${potik.name}" (university_id=${universityId}, token: ${potik.token.substring(0, 15)}...). Data synced to dashboard.`);
+    await addScraperLog("success", `Scraper successfully extracted 1 new ${contentType} for "${potik.name}" (university_id=${universityId}, token: ${potik.token.substring(0, 15)}...). Data synced to dashboard.`);
     
     resolve(potik);
   });
@@ -391,7 +458,7 @@ export const triggerScrapeSimulation = (universityId, contentType) => {
 
 // Impor data asli BPS dari salinan JSON response
 export const importScrapedData = (universityId, contentType, datatableResponse) => {
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
     try {
       let parsed = datatableResponse;
       if (typeof datatableResponse === 'string') {
@@ -402,7 +469,7 @@ export const importScrapedData = (universityId, contentType, datatableResponse) 
         throw new Error("Format DataTables tidak valid (data array tidak ditemukan)");
       }
 
-      const data = getStoredData();
+      const data = await getStoredData();
       const potikIdx = data.findIndex(p => p.id === parseInt(universityId));
       if (potikIdx === -1) {
         throw new Error("Universitas tidak ditemukan");
@@ -410,9 +477,10 @@ export const importScrapedData = (universityId, contentType, datatableResponse) 
 
       const potik = data[potikIdx];
       let importedCount = 0;
+      let duplicateCount = 0;
 
-      // Kosongkan list konten kategori terpilih untuk universitas ini agar selalu up-to-date (Truncate)
-      potik.contents[contentType] = [];
+      const existingItems = potik.contents[contentType] || [];
+      const newItemsList = [];
 
       // Iterasi data hasil scrape dari BPS
       parsed.data.forEach(item => {
@@ -447,7 +515,6 @@ export const importScrapedData = (universityId, contentType, datatableResponse) 
 
         // Kategori khusus
         if (contentType === "video") {
-          // Normalisasi video BPS: Instagram Reels, YouTube, dll
           newItem.video_url = item.preview_embed_url || 
                               item.video_url || 
                               (item.instagram_url ? (item.instagram_url.endsWith('/') ? item.instagram_url + 'embed' : item.instagram_url + '/embed') : null) ||
@@ -459,13 +526,29 @@ export const importScrapedData = (universityId, contentType, datatableResponse) 
           newItem.date = item.tgl_laksana || item.date || newItem.created_at.split(' ')[0];
         }
 
-        // Simpan data ke array
-        potik.contents[contentType].push(newItem);
-        importedCount++;
+        // Cek duplikasi berdasarkan ID
+        const existingItemIdx = existingItems.findIndex(ex => ex.id === newItem.id);
+        if (existingItemIdx !== -1) {
+          // Update data yang sudah ada dengan metadata terbaru dari BPS
+          existingItems[existingItemIdx] = {
+            ...existingItems[existingItemIdx],
+            views_count: newItem.views_count,
+            likes_count: newItem.likes_count,
+            name: newItem.name,
+            description: newItem.description
+          };
+          duplicateCount++;
+        } else {
+          newItemsList.push(newItem);
+          importedCount++;
+        }
       });
 
+      // Gabungkan data lama yang sudah di-update dengan data baru
+      potik.contents[contentType] = [...existingItems, ...newItemsList];
+
       // Perbarui jumlah konten kategori secara akurat
-      potik.contentsCount[contentType] = importedCount;
+      potik.contentsCount[contentType] = potik.contents[contentType].length;
       potik.contentsCount.total = 
         potik.contentsCount.infografis + 
         potik.contentsCount.video + 
@@ -491,16 +574,16 @@ export const importScrapedData = (universityId, contentType, datatableResponse) 
       }
 
       data[potikIdx] = potik;
-      setStoredData(data);
+      await setStoredData(data);
       
       // Pemicu event update database
       window.dispatchEvent(new Event("bps_potik_db_updated"));
       
-      addScraperLog("success", `Sinkronisasi Sukses: Seluruh data ${contentType} untuk "${potik.name}" telah diperbarui (${importedCount} item aktif).`);
+      await addScraperLog("success", `Sinkronisasi Sukses: Seluruh data ${contentType} untuk "${potik.name}" telah diperbarui (${importedCount} baru/terimpor, ${duplicateCount} diperbarui/dilewati).`);
       window.dispatchEvent(new Event("bps_potik_logs_updated"));
-      resolve({ importedCount, duplicateCount: 0, potik });
+      resolve({ importedCount, duplicateCount, potik });
     } catch (err) {
-      addScraperLog("error", `Gagal mengimpor data: ${err.message}`);
+      await addScraperLog("error", `Gagal mengimpor data: ${err.message}`);
       window.dispatchEvent(new Event("bps_potik_logs_updated"));
       reject(err);
     }
