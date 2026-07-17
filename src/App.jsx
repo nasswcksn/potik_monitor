@@ -5,6 +5,7 @@ import PotikList from './components/PotikList';
 import PotikDetail from './components/PotikDetail';
 import Leaderboard from './components/Leaderboard';
 import Simulator from './components/Simulator';
+import AnalysisInsight from './components/AnalysisInsight';
 import { resetDatabase } from './data/apiClient';
 
 function App() {
@@ -38,6 +39,8 @@ function App() {
             onBack={() => setActiveTab(selectedPotikId ? 'potik-list' : 'dashboard')} 
           />
         );
+      case 'analysis':
+        return <AnalysisInsight />;
       case 'leaderboard':
         return <Leaderboard onSelectPotik={handleSelectPotik} />;
       case 'simulator':
