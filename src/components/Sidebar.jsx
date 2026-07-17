@@ -8,7 +8,8 @@ import {
   CheckCircle,
   Database,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  BarChart2
 } from 'lucide-react';
 import { getScraperLogs } from '../data/apiClient';
 import logoPotik from '../assets/logo_pojok_statistik.svg';
@@ -40,9 +41,10 @@ export default function Sidebar({ activeTab, setActiveTab, onResetDb, isCollapse
   }, []);
 
   const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'potik-list', label: 'Daftar Potik', icon: MapPin },
-    { id: 'leaderboard', label: 'Leaderboard', icon: Trophy },
+    { id: 'dashboard', label: 'Dashboard',        icon: LayoutDashboard },
+    { id: 'analysis',  label: 'Analysis Insight', icon: BarChart2 },
+    { id: 'potik-list', label: 'Daftar Potik',    icon: MapPin },
+    { id: 'leaderboard', label: 'Leaderboard',    icon: Trophy },
     { id: 'simulator', label: 'Scraper Simulator', icon: Terminal },
   ];
 
@@ -107,6 +109,12 @@ export default function Sidebar({ activeTab, setActiveTab, onResetDb, isCollapse
           <RefreshCw size={14} />
           <span>Reset Database</span>
         </button>
+      </div>
+
+      {/* Developer Credit */}
+      <div className="sidebar-dev-credit">
+        <span>Developed by <strong>Anas Wicaksono</strong></span>
+        <span>PENS — Politeknik Elektronika Negeri Surabaya</span>
       </div>
 
       {/* Sidebar specific CSS injected directly or styling class declarations */}
@@ -390,6 +398,32 @@ export default function Sidebar({ activeTab, setActiveTab, onResetDb, isCollapse
           border-color: var(--color-danger);
           color: var(--color-danger);
           background: rgba(239, 68, 68, 0.05);
+        }
+
+        .sidebar-dev-credit {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          text-align: center;
+          padding: 0.65rem 0.5rem 0.2rem;
+          gap: 0.15rem;
+          border-top: 1px solid var(--border-color);
+          margin-top: 0.5rem;
+        }
+
+        .sidebar-dev-credit span {
+          font-size: 0.6rem;
+          color: var(--text-muted);
+          line-height: 1.4;
+        }
+
+        .sidebar-dev-credit strong {
+          color: var(--text-secondary);
+          font-weight: 700;
+        }
+
+        .sidebar.collapsed .sidebar-dev-credit {
+          display: none;
         }
 
         @media (max-width: 1024px) {
