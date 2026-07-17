@@ -103,22 +103,14 @@ const runRegionMigration = (data) => {
 // Helper untuk membaca dari IndexedDB
 const getStoredData = async () => {
   let data = await idbGet(KEY_NAME);
-  let needsUpgrade = !data;
-  
-  if (data) {
-    if (data.length !== 57 || (data[0] && (!data[0].logo || !data[0].bps_id))) {
-      needsUpgrade = true;
-    }
-  }
   
   // Coba migrasi data dari LocalStorage lama ke IndexedDB jika ada
   const localData = localStorage.getItem('bps_potik_monitoring_db');
-  if (localData && needsUpgrade) {
+  if (localData && !data) {
     try {
       const parsedLocal = JSON.parse(localData);
-      if (parsedLocal && parsedLocal.length === 57) {
+      if (parsedLocal && Array.isArray(parsedLocal) && parsedLocal.length > 0) {
         data = parsedLocal;
-        needsUpgrade = false;
         const { migratedData } = runRegionMigration(data);
         data = migratedData;
         await idbSet(KEY_NAME, data);
@@ -141,8 +133,9 @@ const getStoredData = async () => {
     }
   }
 
-  if (needsUpgrade) {
-    data = getInitialPotikData();
+  // Jika IndexedDB masih kosong (visitor baru / fresh browser), inisialisasi dari potikData.json
+  if (!data || !Array.isArray(data) || data.length === 0) {
+    data = await getInitialPotikData();
     const { migratedData } = runRegionMigration(data);
     data = migratedData;
     await idbSet(KEY_NAME, data);
@@ -153,6 +146,7 @@ const getStoredData = async () => {
     ]);
     setTimeout(() => syncDatabaseToFile(data), 500);
   } else {
+    // Data sudah ada di IndexedDB — jalankan migrasi region jika diperlukan
     const { migratedData, hasChanges } = runRegionMigration(data);
     if (hasChanges) {
       data = migratedData;
@@ -341,7 +335,7 @@ export const fetchLatestFeed = (limit = 10) => {
 
 // 5. Reset Database ke awal (Kosongkan seluruh konten untuk testing scraping)
 export const resetDatabase = async () => {
-  const initialData = getInitialPotikData();
+  const initialData = await getInitialPotikData();
   const { migratedData } = runRegionMigration(initialData);
   const emptyData = migratedData.map(uni => {
     return {
@@ -485,15 +479,22 @@ export const importScrapedData = (universityId, contentType, datatableResponse) 
       // Iterasi data hasil scrape dari BPS
       parsed.data.forEach(item => {
         // Tentukan thumbnail default berdasarkan kategori jika data kosong
+        const BPS_STORAGE_BASE = 'https://pojokstatistik.bps.go.id/storage/';
         let defaultThumbnail = "";
         if (contentType === "infografis") {
-          defaultThumbnail = item.thumbnail || (item.file ? (item.file.startsWith('http') ? item.file : "https://pojokstatistik.bps.go.id/storage/" + item.file) : null) || `https://picsum.photos/400/500?random=${item.id || 1}`;
+          defaultThumbnail = item.thumbnail || (item.file ? (item.file.startsWith('http') ? item.file : BPS_STORAGE_BASE + item.file) : null) || `https://picsum.photos/400/500?random=${item.id || 1}`;
         } else if (contentType === "edukasi") {
-          defaultThumbnail = item.thumbnail || (item.file ? (item.file.startsWith('http') ? item.file : "https://pojokstatistik.bps.go.id/storage/" + item.file) : null) || `https://picsum.photos/300/400?random=${item.id || 1}`;
+          defaultThumbnail = item.thumbnail || (item.file ? (item.file.startsWith('http') ? item.file : BPS_STORAGE_BASE + item.file) : null) || `https://picsum.photos/300/400?random=${item.id || 1}`;
         } else if (contentType === "video") {
           defaultThumbnail = item.thumbnail || `https://picsum.photos/400/225?random=${item.id || 1}`;
         } else {
           defaultThumbnail = item.thumbnail || `https://picsum.photos/600/400?random=${item.id || 1}`;
+        }
+
+        // ⚡ NORMALISASI: Jika thumbnail masih berupa relative path (tanpa http/https),
+        // tambahkan base URL BPS agar gambar tampil di manapun (termasuk Vercel/hosting lain)
+        if (defaultThumbnail && !defaultThumbnail.startsWith('http') && !defaultThumbnail.startsWith('//')) {
+          defaultThumbnail = BPS_STORAGE_BASE + defaultThumbnail;
         }
 
         // Normalisasi item agar pas dengan format kita
