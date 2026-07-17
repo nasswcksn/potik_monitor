@@ -28,10 +28,18 @@ const server = http.createServer((req, res) => {
     req.on('end', () => {
       try {
         const parsedData = JSON.parse(body);
-        const jsonFilePath = path.join(process.cwd(), 'src', 'data', 'potikData.json');
+        const jsonContent = JSON.stringify(parsedData, null, 2);
         
-        fs.writeFileSync(jsonFilePath, JSON.stringify(parsedData, null, 2), 'utf8');
-        console.log(`[PROXY] Database successfully saved back to file: ${jsonFilePath}`);
+        // Simpan ke src/data/potikData.json (backup lokal)
+        const srcFilePath = path.join(process.cwd(), 'src', 'data', 'potikData.json');
+        fs.writeFileSync(srcFilePath, jsonContent, 'utf8');
+        
+        // Simpan ke public/potikData.json (sumber data untuk Vercel deploy)
+        const publicFilePath = path.join(process.cwd(), 'public', 'potikData.json');
+        fs.writeFileSync(publicFilePath, jsonContent, 'utf8');
+        
+        console.log(`[PROXY] Database successfully saved back to file: ${srcFilePath}`);
+        console.log(`[PROXY] Database successfully saved to public: ${publicFilePath}`);
         
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: true, message: "Database saved successfully to potikData.json" }));
