@@ -82,8 +82,8 @@ export default function PotikList({ onSelectPotik }) {
     }
   };
 
-  // List of regions in East Java BPS
-  const regions = ["All", "Bakorwil I Madiun", "Bakorwil II Bojonegoro", "Bakorwil III Malang", "Bakorwil IV Pamekasan", "Bakorwil V Jember"];
+  // List of unique cities/regions
+  const regions = ["All", ...new Set(potiks.map(p => p.region).filter(Boolean))].sort();
 
   return (
     <div className="potik-list-view animate-fade-in">
@@ -110,7 +110,7 @@ export default function PotikList({ onSelectPotik }) {
 
         <div className="filter-dropdowns">
           <div className="filter-item">
-            <label><Filter size={12} /> Wilayah Geografis</label>
+            <label><Filter size={12} /> Kota / Kabupaten</label>
             <select 
               value={selectedRegion} 
               onChange={(e) => setSelectedRegion(e.target.value)}
@@ -225,19 +225,7 @@ export default function PotikList({ onSelectPotik }) {
               </div>
             </div>
 
-            {/* Engagement Score */}
-            <div className="card-score-bar">
-              <div className="flex-between score-label">
-                <span>Skor Keaktifan</span>
-                <span className="score-val" style={{ color: 'var(--text-primary)', fontWeight: '700' }}>{uni.engagementScore} / 100</span>
-              </div>
-              <div className="score-progress-bg">
-                <div 
-                  className={`score-progress-fill ${uni.engagementScore > 75 ? 'high' : uni.engagementScore > 40 ? 'mid' : 'low'}`}
-                  style={{ width: `${uni.engagementScore}%` }}
-                ></div>
-              </div>
-            </div>
+
 
             {/* Card Footer */}
             <div className="card-footer-action flex-between">
@@ -385,13 +373,8 @@ export default function PotikList({ onSelectPotik }) {
           box-shadow: var(--shadow-sm);
         }
 
-        /* Color Coding avatar based on geographic regions */
-        .uni-logo-avatar.bakorwil-i-madiun { background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); }
-        .uni-logo-avatar.bakorwil-ii-bojonegoro { background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); }
-        .uni-logo-avatar.bakorwil-iii-malang { background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%); }
-        .uni-logo-avatar.bakorwil-iv-pamekasan { background: linear-gradient(135deg, #a855f7 0%, #7e22ce 100%); }
-        .uni-logo-avatar.bakorwil-v-jember { background: linear-gradient(135deg, #10b981 0%, #047857 100%); }
-
+        /* Generic background for avatars without logos */
+        .uni-logo-avatar { background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); }
         .uni-titles h3 {
           font-size: 0.95rem;
           line-height: 1.2;

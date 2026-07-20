@@ -210,7 +210,6 @@ export default function Monev26Konten() {
       edukasi:    p.contentsCount?.edukasi    || 0,
       kegiatan:   p.contentsCount?.kegiatan   || 0,
       total:      p.contentsCount?.total      || 0,
-      score:      p.engagementScore            || 0,
       status:     p.status                    || '-',
     }));
 
@@ -231,7 +230,7 @@ export default function Monev26Konten() {
     setIsExportingExcel(true);
     try {
       // Baris header
-      const header = ['No', 'Universitas / Institusi', 'Kota', 'Bakorwil', 'Infografis', 'Video', 'Edukasi', 'Kegiatan', 'Total Konten', 'Engagement Score', 'Status'];
+      const header = ['No', 'Universitas / Institusi', 'Kota', 'Wilayah', 'Infografis', 'Video', 'Edukasi', 'Kegiatan', 'Total Konten', 'Status'];
 
       // Data rows (gunakan semua potik, bukan hanya yang di filter chart)
       let rows = [...potiks].sort((a, b) => a.name.localeCompare(b.name)).map((p, i) => [
@@ -244,16 +243,15 @@ export default function Monev26Konten() {
         p.contentsCount?.edukasi    || 0,
         p.contentsCount?.kegiatan   || 0,
         p.contentsCount?.total      || 0,
-        p.engagementScore            || 0,
         p.status                    || '-',
       ]);
 
       // Baris summary di bawah
       rows.push([]);
       rows.push(['', 'TOTAL', '', '',
-        summary.infografis, summary.video, summary.edukasi, summary.kegiatan, summary.total, '', ''
+        summary.infografis, summary.video, summary.edukasi, summary.kegiatan, summary.total, ''
       ]);
-      rows.push(['', 'Universitas Aktif', '', '', '', '', '', '', '', `${summary.active} dari ${potiks.length}`, '']);
+      rows.push(['', 'Universitas Aktif', '', '', '', '', '', '', `${summary.active} dari ${potiks.length}`, '']);
 
       const wsData = [header, ...rows];
       const ws = XLSX.utils.aoa_to_sheet(wsData);
@@ -262,7 +260,7 @@ export default function Monev26Konten() {
       ws['!cols'] = [
         { wch: 5 }, { wch: 45 }, { wch: 18 }, { wch: 22 },
         { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 12 },
-        { wch: 14 }, { wch: 18 }, { wch: 20 },
+        { wch: 14 }, { wch: 20 },
       ];
 
       const wb = XLSX.utils.book_new();
@@ -353,13 +351,12 @@ export default function Monev26Konten() {
         p.contentsCount?.edukasi    || 0,
         p.contentsCount?.kegiatan   || 0,
         p.contentsCount?.total      || 0,
-        p.engagementScore            || 0,
         p.status                    || '-',
       ]);
 
       autoTable(doc, {
         startY: 38,
-        head: [['No', 'Universitas', 'Kota', 'Bakorwil', 'Infografis', 'Video', 'Edukasi', 'Kegiatan', 'Total', 'Score', 'Status']],
+        head: [['No', 'Universitas', 'Kota', 'Wilayah', 'Infografis', 'Video', 'Edukasi', 'Kegiatan', 'Total', 'Status']],
         body: tableBody,
         styles: { fontSize: 7, cellPadding: 2, font: 'helvetica' },
         headStyles: { fillColor: [2, 132, 199], textColor: 255, fontStyle: 'bold', fontSize: 7.5 },
@@ -373,12 +370,11 @@ export default function Monev26Konten() {
           5: { cellWidth: 14, halign: 'center' },
           6: { cellWidth: 14, halign: 'center' },
           7: { cellWidth: 16, halign: 'center' },
-          8: { cellWidth: 13, halign: 'center', fontStyle: 'bold' },
-          9: { cellWidth: 13, halign: 'center' },
-          10: { cellWidth: 22, halign: 'center' },
+          8: { cellWidth: 15, halign: 'center', fontStyle: 'bold' },
+          9: { cellWidth: 22, halign: 'center' },
         },
         didParseCell: (data) => {
-          if (data.column.index === 10 && data.section === 'body') {
+          if (data.column.index === 9 && data.section === 'body') {
             const val = data.cell.raw;
             if (val === 'Aktif')             { data.cell.styles.textColor = [22, 163, 74]; data.cell.styles.fontStyle = 'bold'; }
             else if (val === 'Kurang Aktif') { data.cell.styles.textColor = [234, 88, 12]; }
@@ -392,7 +388,7 @@ export default function Monev26Konten() {
         },
         foot: [['', 'TOTAL', '', '',
           summary.infografis, summary.video, summary.edukasi, summary.kegiatan,
-          summary.total, '', '']],
+          summary.total, '']],
         footStyles: { fillColor: [15, 23, 42], textColor: 255, fontStyle: 'bold', fontSize: 7.5 },
         margin: { left: 12, right: 12 },
       });
@@ -537,7 +533,7 @@ export default function Monev26Konten() {
             </select>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-            <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>BAKORWIL</label>
+            <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>KOTA / KABUPATEN</label>
             <select
               id="filter-region-analysis"
               className="input-control"

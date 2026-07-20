@@ -19,7 +19,7 @@ export default function Leaderboard({ onSelectPotik }) {
   const [potiks, setPotiks] = useState([]);
   const [filteredPotiks, setFilteredPotiks] = useState([]);
   const [search, setSearch] = useState("");
-  const [sortField, setSortField] = useState("engagementScore");
+  const [sortField, setSortField] = useState("count_total");
   const [sortDirection, setSortDirection] = useState("desc");
   const [start, setStart] = useState(0);
   const [length, setLength] = useState(10); // Limit 1-10 (default 10 baris)
@@ -31,11 +31,8 @@ export default function Leaderboard({ onSelectPotik }) {
   const loadData = async () => {
     try {
       const data = await fetchPotikList();
-      // Urutkan default berdasarkan score desc. Jika sama, urutkan berdasarkan total publikasi.
+      // Urutkan default berdasarkan total publikasi.
       const sorted = [...data].sort((a, b) => {
-        if (b.engagementScore !== a.engagementScore) {
-          return b.engagementScore - a.engagementScore;
-        }
         return b.contentsCount.total - a.contentsCount.total;
       });
       setPotiks(sorted);
@@ -94,14 +91,6 @@ export default function Leaderboard({ onSelectPotik }) {
       if (valA < valB) return sortDirection === "asc" ? -1 : 1;
       if (valA > valB) return sortDirection === "asc" ? 1 : -1;
       
-      // Jika sorting berdasarkan skor tapi seri (contoh: sama-sama 100), gunakan total publikasi sebagai tie-breaker
-      if (sortField === "engagementScore") {
-        const totalA = a.contentsCount.total || 0;
-        const totalB = b.contentsCount.total || 0;
-        if (totalA !== totalB) {
-          return sortDirection === "asc" ? totalA - totalB : totalB - totalA;
-        }
-      }
       return 0;
     });
 
@@ -157,8 +146,8 @@ export default function Leaderboard({ onSelectPotik }) {
               <p className="city"><MapPin size={12} className="inline-icon" /> {uni.city}</p>
               
               <div className="podium-score border-top">
-                <Star size={14} className="star-icon" />
-                <span><b>{uni.engagementScore}</b> Points</span>
+                <FileText size={14} className="star-icon" />
+                <span><b>{uni.contentsCount.total}</b> Konten</span>
               </div>
               
               {/* Composition */}
@@ -215,8 +204,8 @@ export default function Leaderboard({ onSelectPotik }) {
                 <th onClick={() => handleSort("count_kegiatan")} className="sortable text-center">
                   <Users size={14} className="inline-icon color-kegiatan" /> Keg <ArrowUpDown size={12} className="inline-icon" />
                 </th>
-                <th onClick={() => handleSort("engagementScore")} className="sortable text-center font-bold">
-                  Skor Keaktifan <ArrowUpDown size={12} className="inline-icon" />
+                <th onClick={() => handleSort("count_total")} className="sortable text-center font-bold">
+                  Total Konten <ArrowUpDown size={12} className="inline-icon" />
                 </th>
               </tr>
             </thead>
@@ -252,7 +241,7 @@ export default function Leaderboard({ onSelectPotik }) {
                     <td className="text-center">{uni.contentsCount.edukasi}</td>
                     <td className="text-center">{uni.contentsCount.kegiatan}</td>
                     <td className="text-center font-bold">
-                      <span className="score-badge">{uni.engagementScore}</span>
+                      <span className="score-badge">{uni.contentsCount.total}</span>
                     </td>
                   </tr>
                 );

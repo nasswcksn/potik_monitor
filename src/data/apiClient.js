@@ -54,42 +54,9 @@ const idbSet = async (key, val) => {
 
 // Region Migration Helper
 const runRegionMigration = (data) => {
-  const cityToBakorwil = {
-    "Pacitan": "Bakorwil I Madiun",
-    "Ngawi": "Bakorwil I Madiun",
-    "Magetan": "Bakorwil I Madiun",
-    "Madiun": "Bakorwil I Madiun",
-    "Nganjuk": "Bakorwil I Madiun",
-    "Trenggalek": "Bakorwil I Madiun",
-    "Ponorogo": "Bakorwil I Madiun",
-    "Kediri": "Bakorwil I Madiun",
-    "Tulungagung": "Bakorwil I Madiun",
-    "Bojonegoro": "Bakorwil II Bojonegoro",
-    "Tuban": "Bakorwil II Bojonegoro",
-    "Lamongan": "Bakorwil II Bojonegoro",
-    "Jombang": "Bakorwil II Bojonegoro",
-    "Mojokerto": "Bakorwil II Bojonegoro",
-    "Gresik": "Bakorwil II Bojonegoro",
-    "Surabaya": "Bakorwil III Malang",
-    "Sidoarjo": "Bakorwil III Malang",
-    "Malang": "Bakorwil III Malang",
-    "Pasuruan": "Bakorwil III Malang",
-    "Blitar": "Bakorwil III Malang",
-    "Bangkalan": "Bakorwil IV Pamekasan",
-    "Sampang": "Bakorwil IV Pamekasan",
-    "Pamekasan": "Bakorwil IV Pamekasan",
-    "Sumenep": "Bakorwil IV Pamekasan",
-    "Jember": "Bakorwil V Jember",
-    "Lumajang": "Bakorwil V Jember",
-    "Bondowoso": "Bakorwil V Jember",
-    "Situbondo": "Bakorwil V Jember",
-    "Probolinggo": "Bakorwil V Jember",
-    "Banyuwangi": "Bakorwil V Jember"
-  };
-
   let hasChanges = false;
   const migratedData = data.map(uni => {
-    const formalRegion = cityToBakorwil[uni.city];
+    const formalRegion = uni.city;
     if (formalRegion && uni.region !== formalRegion) {
       hasChanges = true;
       return { ...uni, region: formalRegion };
@@ -341,7 +308,6 @@ export const resetDatabase = async () => {
     return {
       ...uni,
       status: "Perlu Tindak Lanjut",
-      engagementScore: 0,
       contentsCount: {
         infografis: 0,
         video: 0,
@@ -425,14 +391,6 @@ export const triggerScrapeSimulation = (universityId, contentType) => {
     // Perbarui jumlah konten
     potik.contentsCount[contentType] += 1;
     potik.contentsCount.total += 1;
-    
-    // Perbarui Engagement Score
-    let points = 4;
-    if (contentType === "video") points = 6;
-    else if (contentType === "edukasi") points = 3;
-    else if (contentType === "kegiatan") points = 8;
-    
-    potik.engagementScore = Math.min(potik.engagementScore + points, 100);
     
     // Update status jika sebelumnya Kurang Aktif/Pasif
     if (potik.status === "Perlu Tindak Lanjut" || potik.status === "Kurang Aktif") {
@@ -556,15 +514,6 @@ export const importScrapedData = (universityId, contentType, datatableResponse) 
         potik.contentsCount.edukasi + 
         potik.contentsCount.kegiatan;
 
-      // Kalkulasi ulang Engagement Score secara akurat dari awal
-      const totalInfografis = potik.contents.infografis.length;
-      const totalVideo = potik.contents.video.length;
-      const totalEdukasi = potik.contents.edukasi.length;
-      const totalKegiatan = potik.contents.kegiatan.length;
-      
-      const score = (totalInfografis * 4) + (totalVideo * 6) + (totalEdukasi * 3) + (totalKegiatan * 8);
-      potik.engagementScore = Math.min(Math.round(score), 100);
-      
       // Update status keaktifan secara otomatis berdasarkan jumlah konten
       if (potik.contentsCount.total > 15) {
         potik.status = "Aktif";

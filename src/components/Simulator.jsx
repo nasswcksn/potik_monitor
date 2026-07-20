@@ -197,7 +197,7 @@ export default function Simulator() {
   const [lastResponse, setLastResponse] = useState(null);
 
   // State baru untuk integrasi API BPS
-  const [activeSubTab, setActiveSubTab] = useState("mock"); // "mock" | "real"
+  const [activeSubTab, setActiveSubTab] = useState("real"); // "real" | "all_in_one"
   const [integrationMode, setIntegrationMode] = useState("proxy"); // "proxy" | "paste"
   const [pasteJson, setPasteJson] = useState("");
   const [cookieInput, setCookieInput] = useState("");
@@ -288,42 +288,117 @@ export default function Simulator() {
     }
   }, [selectedUni, selectedType, integrationMode, potiks]);
 
-  const handleSimulate = async () => {
-    if (!selectedUni) return;
-    setIsRunning(true);
-
-    const chosenUni = potiks.find(p => p.id === parseInt(selectedUni));
-    if (chosenUni) {
-      addScraperLog("info", `[FETCH] Scraper outbound GET request ke /adminpsbe/${selectedType}/datatable?university_id=${chosenUni.token.substring(0, 15)}...`);
+  const handleFetchProxyAllInOne = async () => {
+    if (!isProxyOnline) {
+      alert("Proxy server lokal belum aktif. Jalankan 'npm run proxy' terlebih dahulu di terminal proyek.");
+      return;
+    }
+    if (!cookieInput.trim()) {
+      alert("Silakan masukkan BPS Admin Cookie Anda terlebih dahulu untuk autentikasi.");
+      return;
     }
 
-    setTimeout(async () => {
-      try {
-        const updatedPotik = await triggerScrapeSimulation(selectedUni, selectedType);
-        const newItems = updatedPotik.contents[selectedType];
-        const latestItem = newItems[0];
+    setProxyLoading(true);
+    const delayMs = parseInt(scrapeDelay) || 2000;
+    const categories = ['infografis', 'video', 'edukasi', 'kegiatan'];
+    
+    let totalImportedGlobal = 0;
+    let totalDuplicatesGlobal = 0;
 
-        const mockResponse = {
-          draw: 1,
-          recordsTotal: newItems.length,
-          recordsFiltered: newItems.length,
-          data: [latestItem]
-        };
+    let cookieHeaderValue = cookieInput.trim();
+    if (cookieHeaderValue && !cookieHeaderValue.includes('=')) {
+      cookieHeaderValue = `pojokstatisik_session=${cookieHeaderValue}`;
+    }
 
-        setLastResponse(mockResponse);
+    addScraperLog("info", `🚀 [SCRAPE ALL IN ONE] Memulai penarikan untuk ${potiks.length} universitas...`);
 
-        confetti({
-          particleCount: 100,
-          spread: 70,
-          origin: { y: 0.6 },
-          colors: ['#0284c7', '#ea580c', '#10b981']
-        });
-      } catch (err) {
-        console.error("Simulation failed:", err);
-      } finally {
-        setIsRunning(false);
+    for (let u = 0; u < potiks.length; u++) {
+      const currentUni = potiks[u];
+      const currentBpsUniId = currentUni.bps_id ? currentUni.bps_id.toString() : "";
+      
+      if (!currentBpsUniId) {
+        addScraperLog("error", `[SKIP] ${currentUni.name} dilewati karena bps_id tidak ditemukan.`);
+        continue;
       }
-    }, 1500);
+
+      addScraperLog("info", `=========================================`);
+      addScraperLog("info", `🏛️ Memproses Universitas ${u + 1}/${potiks.length}: ${currentUni.name}`);
+
+      for (let c = 0; c < categories.length; c++) {
+        const currentCat = categories[c];
+        const catLabel = currentCat === 'edukasi' ? 'Edukasi Statistik' : 
+                         currentCat === 'kegiatan' ? 'Kegiatan Lainnya' : 
+                         currentCat.charAt(0).toUpperCase() + currentCat.slice(1);
+        
+        let catPath = `/adminpsbe/${currentCat}/datatable`;
+        if (currentCat === "kegiatan") catPath = "/adminpsbe/kegiatan-lain/datatable";
+
+        let currentStart = 0;
+        const batchLength = 100;
+        let hasMore = true;
+
+        while (hasMore) {
+          let bpsBaseUrl = `https://pojokstatistik.bps.go.id${catPath}`;
+          bpsBaseUrl += `?draw=1&start=${currentStart}&length=${batchLength}&university_id=${currentBpsUniId}`;
+          const proxyUrl = `/api/fetch?url=${encodeURIComponent(bpsBaseUrl)}`;
+
+          try {
+            const response = await fetch(proxyUrl, {
+              method: 'GET',
+              headers: { 'X-BPS-Cookie': cookieHeaderValue }
+            });
+
+            if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
+            const resText = await response.text();
+            let resJson;
+            
+            if (resText.includes('/login') || resText.includes('login-box') || resText.includes('name="username"')) {
+              throw new Error("Sesi Cookie BPS Anda sudah kedaluwarsa.");
+            }
+
+            if (resText.trim().startsWith('<')) {
+              if (currentCat === "kegiatan") {
+                resJson = parseHtmlToKegiatanJson(resText, currentBpsUniId);
+                hasMore = false;
+              } else {
+                throw new Error("Menerima respon HTML yang tidak terduga.");
+              }
+            } else {
+              resJson = JSON.parse(resText);
+            }
+            
+            setLastResponse(resJson);
+            const resImport = await importScrapedData(currentUni.id.toString(), currentCat, resJson);
+            
+            totalImportedGlobal += resImport.importedCount;
+            totalDuplicatesGlobal += resImport.duplicateCount;
+
+            addScraperLog("success", `[${currentUni.name} - ${catLabel}] +${resImport.importedCount} baru, ${resImport.duplicateCount} duplikat.`);
+
+            const recordsFiltered = resJson.recordsFiltered || 0;
+            const recordsReturned = (resJson.data || []).length;
+
+            if (recordsReturned < batchLength || (currentStart + recordsReturned) >= recordsFiltered) {
+              hasMore = false;
+            } else {
+              currentStart += batchLength;
+              await new Promise(resolve => setTimeout(resolve, delayMs));
+            }
+
+          } catch (err) {
+            addScraperLog("error", `[FAIL ${currentUni.name} - ${catLabel}] ${err.message}`);
+            hasMore = false;
+          }
+        }
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
+    }
+
+    setProxyLoading(false);
+    if (totalImportedGlobal > 0) {
+      confetti({ particleCount: 300, spread: 150, origin: { y: 0.6 } });
+    }
+    alert(`[SCRAPE ALL IN ONE SELESAI]\nTotal data baru terimpor: ${totalImportedGlobal} item\nTotal data duplikat/dilewati: ${totalDuplicatesGlobal} item`);
   };
 
   const handleImportJson = async () => {
@@ -534,14 +609,6 @@ export default function Simulator() {
             {/* Sub-Tab Navigation */}
             <div className="tab-buttons-row" style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
               <button 
-                className={`tab-btn ${activeSubTab === 'mock' ? 'active' : ''}`}
-                onClick={() => setActiveSubTab('mock')}
-                style={{ padding: '0.5rem 1rem', border: 'none', background: activeSubTab === 'mock' ? 'var(--bps-blue)' : 'transparent', color: activeSubTab === 'mock' ? '#fff' : 'var(--text-secondary)', borderRadius: '6px', fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
-              >
-                <Cpu size={14} />
-                <span>Simulasi Mock</span>
-              </button>
-              <button 
                 className={`tab-btn ${activeSubTab === 'real' ? 'active' : ''}`}
                 onClick={() => setActiveSubTab('real')}
                 style={{ padding: '0.5rem 1rem', border: 'none', background: activeSubTab === 'real' ? 'var(--bps-blue)' : 'transparent', color: activeSubTab === 'real' ? '#fff' : 'var(--text-secondary)', borderRadius: '6px', fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
@@ -549,54 +616,73 @@ export default function Simulator() {
                 <Globe size={14} />
                 <span>Integrasi API</span>
               </button>
+              <button 
+                className={`tab-btn ${activeSubTab === 'all_in_one' ? 'active' : ''}`}
+                onClick={() => setActiveSubTab('all_in_one')}
+                style={{ padding: '0.5rem 1rem', border: 'none', background: activeSubTab === 'all_in_one' ? 'var(--bps-blue)' : 'transparent', color: activeSubTab === 'all_in_one' ? '#fff' : 'var(--text-secondary)', borderRadius: '6px', fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+              >
+                <Zap size={14} />
+                <span>Scrape All In One</span>
+              </button>
             </div>
 
-            {/* MOCK MODE CONTROLS */}
-            {activeSubTab === 'mock' && (
+            {/* SCRAPE ALL IN ONE MODE CONTROLS */}
+            {activeSubTab === 'all_in_one' && (
               <div className="form-layout">
+                <div className="payload-info-banner flex-gap-2" style={{ background: 'rgba(234, 88, 12, 0.08)', border: '1px solid rgba(234, 88, 12, 0.15)', color: 'var(--bps-orange)' }}>
+                  <AlertCircle size={16} />
+                  <span style={{ fontSize: '0.75rem', fontWeight: '600' }}>
+                    Perhatian: Aksi ini akan menarik data untuk SELURUH Universitas dan Kategori sekaligus. Proses ini mungkin memakan waktu lama.
+                  </span>
+                </div>
+                
                 <div className="form-group">
-                  <label>Pilih Universitas (Target local ID):</label>
-                  <select 
-                    value={selectedUni} 
-                    onChange={(e) => setSelectedUni(e.target.value)}
-                    className="input-control select-control"
-                    disabled={isRunning}
-                  >
-                    {potiks.map(p => (
-                      <option key={p.id} value={p.id}>{p.name} (ID: {p.id} - {p.city})</option>
-                    ))}
-                  </select>
+                  <label>BPS Admin Cookie Header (Autentikasi):</label>
+                  <input 
+                    type="text" 
+                    placeholder="Tempel header cookie: laravel_session=..." 
+                    value={cookieInput} 
+                    onChange={(e) => setCookieInput(e.target.value)}
+                    className="input-control"
+                    disabled={proxyLoading}
+                    style={{ fontSize: '0.8rem' }}
+                  />
+                  <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
+                    Buka BPS Web Admin {"→"} F12 Inspect {"→"} Network {"→"} Salin header <b>Cookie</b> di header HTTP request BPS.
+                  </span>
                 </div>
 
                 <div className="form-group">
-                  <label>Kategori Data (Target API Path):</label>
-                  <select 
-                    value={selectedType} 
-                    onChange={(e) => setSelectedType(e.target.value)}
-                    className="input-control select-control"
-                    disabled={isRunning}
-                  >
-                    <option value="infografis">/infografis/datatable</option>
-                    <option value="video">/video/datatable</option>
-                    <option value="edukasi">/edukasi/datatable</option>
-                    <option value="kegiatan">/kegiatan/datatable</option>
-                  </select>
+                  <label>Interval Jeda Antar Request (ms):</label>
+                  <input 
+                    type="number" 
+                    value={scrapeDelay} 
+                    onChange={(e) => setScrapeDelay(e.target.value)}
+                    className="input-control"
+                    disabled={proxyLoading}
+                    min="1000"
+                    style={{ fontSize: '0.8rem' }}
+                  />
+                  <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
+                    Sangat disarankan jeda minimal 2000-3000ms untuk menghindari pemblokiran oleh server BPS.
+                  </span>
                 </div>
 
                 <button 
-                  className={`btn btn-primary btn-run-scraper ${isRunning ? 'running' : ''}`}
-                  onClick={handleSimulate}
-                  disabled={isRunning}
+                  className={`btn btn-primary btn-run-scraper ${proxyLoading ? 'running' : ''}`}
+                  onClick={handleFetchProxyAllInOne}
+                  disabled={proxyLoading || !isProxyOnline}
+                  style={{ background: 'linear-gradient(135deg, var(--bps-orange) 0%, var(--bps-orange-light) 100%)', borderColor: 'var(--bps-orange)' }}
                 >
-                  {isRunning ? (
+                  {proxyLoading ? (
                     <>
                       <RefreshCw className="spinner" size={16} />
-                      <span>Simulating Scraper...</span>
+                      <span>Menjalankan Scrape All In One...</span>
                     </>
                   ) : (
                     <>
-                      <Play size={16} />
-                      <span>Jalankan Simulator Mock</span>
+                      <Zap size={16} />
+                      <span>Mulai Sinkronisasi Seluruh Data</span>
                     </>
                   )}
                 </button>
