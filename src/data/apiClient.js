@@ -1,4 +1,4 @@
-import { getInitialPotikData } from './potikData';
+import { getInitialPotikData, getFilteredPotikData } from './potikData';
 
 // IndexedDB Helper Functions
 const DB_NAME = 'BpsPotikMonitoringDB';
@@ -181,11 +181,22 @@ export const addScraperLog = async (type, message) => {
 // ==================== EXPORTED API CLIENT EMULATORS ====================
 
 // 1. Fetch seluruh daftar universitas (Potik)
-export const fetchPotikList = () => {
+export const fetchPotikList = async () => {
   return new Promise(async (resolve) => {
     setTimeout(async () => {
-      resolve(await getStoredData());
-    }, 200); // Simulasi delay network
+      const data = await getStoredData();
+      resolve(data);
+    }, 500); // Simulasi delay jaringan
+  });
+};
+
+// 2b. Fetch Filtered Monev Data
+export const fetchFilteredPotikList = async () => {
+  return new Promise(async (resolve) => {
+    setTimeout(async () => {
+      const data = await getFilteredPotikData();
+      resolve(data);
+    }, 500);
   });
 };
 
@@ -235,14 +246,15 @@ export const fetchDatatable = (type, universityId, draw = 1, start = 0, length =
         const endMs = endDate ? new Date(endDate + "T23:59:59").getTime() : null;
 
         filteredData = filteredData.filter(item => {
-          const itemDateStr = item.created_at || item.date;
-          if (!itemDateStr) return true;
+          const itemDateStr = item.created_at;
+          if (!itemDateStr) return false;
+          
           const formattedDateStr = itemDateStr.includes(' ') 
             ? itemDateStr.replace(' ', 'T') 
             : itemDateStr + "T12:00:00";
           const itemMs = new Date(formattedDateStr).getTime();
           
-          if (isNaN(itemMs)) return true;
+          if (isNaN(itemMs)) return false;
           if (startMs && itemMs < startMs) return false;
           if (endMs && itemMs > endMs) return false;
           return true;
@@ -266,10 +278,10 @@ export const fetchDatatable = (type, universityId, draw = 1, start = 0, length =
 };
 
 // 4. Fetch Global Feed (Timeline aktivitas terbaru dari semua Potik)
-export const fetchLatestFeed = (limit = 10) => {
+export const fetchLatestFeed = (limit = 10, isFiltered = false) => {
   return new Promise(async (resolve) => {
     setTimeout(async () => {
-      const data = await getStoredData();
+      const data = isFiltered ? await getFilteredPotikData() : await getStoredData();
       const allFeed = [];
 
       data.forEach(potik => {
@@ -439,12 +451,20 @@ export const importScrapedData = (universityId, contentType, datatableResponse) 
         // Tentukan thumbnail default berdasarkan kategori jika data kosong
         const BPS_STORAGE_BASE = 'https://pojokstatistik.bps.go.id/storage/';
         let defaultThumbnail = "";
+        let ytId = null;
+
+        if (contentType === "video") {
+          ytId = item.youtube_id || 
+                 (item.url && item.url.length === 11 ? item.url : null) || 
+                 (item.youtube_url && item.youtube_url.includes('v=') ? item.youtube_url.split('v=')[1].split('&')[0] : null);
+        }
+
         if (contentType === "infografis") {
           defaultThumbnail = item.thumbnail || (item.file ? (item.file.startsWith('http') ? item.file : BPS_STORAGE_BASE + item.file) : null) || `https://picsum.photos/400/500?random=${item.id || 1}`;
         } else if (contentType === "edukasi") {
-          defaultThumbnail = item.thumbnail || (item.file ? (item.file.startsWith('http') ? item.file : BPS_STORAGE_BASE + item.file) : null) || `https://picsum.photos/300/400?random=${item.id || 1}`;
+          defaultThumbnail = item.poster_url || item.thumbnail || (item.file ? (item.file.startsWith('http') ? item.file : BPS_STORAGE_BASE + item.file) : null) || `https://picsum.photos/300/400?random=${item.id || 1}`;
         } else if (contentType === "video") {
-          defaultThumbnail = item.thumbnail || `https://picsum.photos/400/225?random=${item.id || 1}`;
+          defaultThumbnail = item.thumbnail || (ytId ? `https://img.youtube.com/vi/${ytId}/maxresdefault.jpg` : `https://picsum.photos/400/225?random=${item.id || 1}`);
         } else {
           defaultThumbnail = item.thumbnail || `https://picsum.photos/600/400?random=${item.id || 1}`;
         }
@@ -475,9 +495,9 @@ export const importScrapedData = (universityId, contentType, datatableResponse) 
         // Kategori khusus
         if (contentType === "video") {
           newItem.video_url = item.preview_embed_url || 
-                              item.video_url || 
+                              (ytId ? `https://www.youtube.com/embed/${ytId}` : null) || 
+                              (item.video_url && item.video_url.includes('embed') ? item.video_url : null) ||
                               (item.instagram_url ? (item.instagram_url.endsWith('/') ? item.instagram_url + 'embed' : item.instagram_url + '/embed') : null) ||
-                              (item.url && item.url.length === 11 ? 'https://www.youtube.com/embed/' + item.url : null) || 
                               "https://www.youtube.com/embed/dQw4w9WgXcQ";
         } else if (contentType === "edukasi") {
           newItem.type = item.type || "Buku/Booklet";

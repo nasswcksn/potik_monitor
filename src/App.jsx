@@ -30,7 +30,7 @@ function App() {
   const renderActiveTabContent = () => {
     switch (activeTab) {
       case 'dashboard':
-        return <Dashboard onSelectPotik={handleSelectPotik} setActiveTab={setActiveTab} />;
+        return <Dashboard onSelectPotik={handleSelectPotik} setActiveTab={setActiveTab} isFiltered={false} />;
       case 'potik-list':
         return <PotikList onSelectPotik={handleSelectPotik} />;
       case 'potik-detail':
@@ -48,8 +48,10 @@ function App() {
         return <Simulator />;
       case 'monev-26-konten':
         return <Monev26Konten />;
+      case 'monev-26-ipotik':
+        return <Dashboard onSelectPotik={handleSelectPotik} setActiveTab={setActiveTab} isFiltered={true} />;
       default:
-        return <Dashboard onSelectPotik={handleSelectPotik} setActiveTab={setActiveTab} />;
+        return <Dashboard onSelectPotik={handleSelectPotik} setActiveTab={setActiveTab} isFiltered={false} />;
     }
   };
 

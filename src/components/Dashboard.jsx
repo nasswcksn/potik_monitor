@@ -11,9 +11,9 @@ import {
   ExternalLink
 } from 'lucide-react';
 import L from 'leaflet';
-import { fetchPotikList, fetchLatestFeed } from '../data/apiClient';
+import { fetchPotikList, fetchFilteredPotikList, fetchLatestFeed } from '../data/apiClient';
 
-export default function Dashboard({ onSelectPotik, setActiveTab }) {
+export default function Dashboard({ onSelectPotik, setActiveTab, isFiltered }) {
   const [stats, setStats] = useState({
     total: 0,
     active: 0,
@@ -27,7 +27,7 @@ export default function Dashboard({ onSelectPotik, setActiveTab }) {
 
   const loadData = async () => {
     try {
-      const potikList = await fetchPotikList();
+      const potikList = isFiltered ? await fetchFilteredPotikList() : await fetchPotikList();
       setPotiks(potikList);
 
       // Hitung Statistik
@@ -42,7 +42,7 @@ export default function Dashboard({ onSelectPotik, setActiveTab }) {
       setLeaderboard(sorted.slice(0, 5));
 
       // Load Recent Feed
-      const recentFeed = await fetchLatestFeed(8);
+      const recentFeed = await fetchLatestFeed(8, isFiltered);
       setFeed(recentFeed);
     } catch (err) {
       console.error("Error loading dashboard data:", err);

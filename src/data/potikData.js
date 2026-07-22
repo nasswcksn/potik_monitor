@@ -1008,9 +1008,15 @@ function generateContentsForUni(uni, countMultiplier) {
   return contents;
 }
 
-// Inisialisasi Database 57 Perguruan Tinggi dari file JSON publik (di /public/potikDataFiltered.json)
-// Menggunakan fetch() agar tidak masuk ke bundle JS (menghindari bundle >8MB)
+// Inisialisasi Database 57 Perguruan Tinggi dari file JSON publik
+// Menggunakan fetch() agar tidak masuk ke bundle JS
 export const getInitialPotikData = async () => {
+  const response = await fetch('/potikData.json');
+  if (!response.ok) throw new Error(`Gagal memuat potikData.json: ${response.status}`);
+  return await response.json();
+};
+
+export const getFilteredPotikData = async () => {
   const response = await fetch('/potikDataFiltered.json');
   if (!response.ok) throw new Error(`Gagal memuat potikDataFiltered.json: ${response.status}`);
   return await response.json();

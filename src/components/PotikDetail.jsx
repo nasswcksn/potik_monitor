@@ -42,8 +42,8 @@ export default function PotikDetail({ potikId, onBack }) {
   const [start, setStart] = useState(0);
   const [length, setLength] = useState(5); // Baris per halaman
   const [isLoading, setIsLoading] = useState(false);
-  const [startDate, setStartDate] = useState("2025-08-01");
-  const [endDate, setEndDate] = useState("2026-07-31");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
   // Lightbox modal state
   const [selectedMedia, setSelectedMedia] = useState(null);
@@ -321,8 +321,8 @@ export default function PotikDetail({ potikId, onBack }) {
                     {/* Row 1: thumbnail (infografis only) + main content */}
                     <div className="catalog-card__body">
 
-                      {/* Thumbnail — infografis only */}
-                      {activeSubTab === "infografis" && item.thumbnail && (
+                      {/* Thumbnail — infografis & edukasi */}
+                      {(activeSubTab === "infografis" || activeSubTab === "edukasi")&& item.thumbnail && (
                         <div className="catalog-thumb" onClick={() => setSelectedMedia(item)}>
                           <img
                             src={item.thumbnail}
@@ -437,29 +437,31 @@ export default function PotikDetail({ potikId, onBack }) {
               <X size={20} />
             </button>
             <div className="modal-body-layout">
-              <div className="modal-preview">
-                {activeSubTab === 'video' ? (
-                  <iframe 
-                    width="100%" 
-                    height="315" 
-                    src={selectedMedia.video_url || "https://www.youtube.com/embed/dQw4w9WgXcQ"} 
-                    title="YouTube video player" 
-                    frameBorder="0" 
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                    allowFullScreen
-                  ></iframe>
-                ) : (
-                  <img 
-                    src={selectedMedia.thumbnail} 
-                    alt={selectedMedia.name} 
-                    className="modal-img" 
-                    onError={(e) => {
-                      e.target.onerror = null;
-                      e.target.src = `https://picsum.photos/400/300?random=${selectedMedia.id}`;
-                    }}
-                  />
-                )}
-              </div>
+              {activeSubTab !== 'kegiatan' && (
+                <div className="modal-preview">
+                  {activeSubTab === 'video' ? (
+                    <iframe 
+                      width="100%" 
+                      height="315" 
+                      src={selectedMedia.video_url || "https://www.youtube.com/embed/dQw4w9WgXcQ"} 
+                      title="YouTube video player" 
+                      frameBorder="0" 
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                      allowFullScreen
+                    ></iframe>
+                  ) : (
+                    <img 
+                      src={selectedMedia.thumbnail} 
+                      alt={selectedMedia.name} 
+                      className="modal-img" 
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = `https://picsum.photos/400/300?random=${selectedMedia.id}`;
+                      }}
+                    />
+                  )}
+                </div>
+              )}
               <div className="modal-info">
                 <span className="date">{selectedMedia.created_at}</span>
                 <h2>{selectedMedia.name}</h2>

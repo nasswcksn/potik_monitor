@@ -207,6 +207,8 @@ export default function Simulator() {
   const [proxyLoading, setProxyLoading] = useState(false);
   const [isAutoScrape, setIsAutoScrape] = useState(true); // Paginasi otomatis
   const [scrapeDelay, setScrapeDelay] = useState("2000"); // Jeda 2 detik antar request untuk menghindari rate-limit BPS
+  const [scrapeStartDate, setScrapeStartDate] = useState("");
+  const [scrapeEndDate, setScrapeEndDate] = useState("");
 
   const terminalEndRef = useRef(null);
 
@@ -367,6 +369,28 @@ export default function Simulator() {
               resJson = JSON.parse(resText);
             }
             
+            const originalRecordsReturned = (resJson.data || []).length;
+            const recordsFiltered = resJson.recordsFiltered || 0;
+
+            if (scrapeStartDate || scrapeEndDate) {
+              const startDt = scrapeStartDate ? new Date(scrapeStartDate).getTime() : 0;
+              const endDt = scrapeEndDate ? new Date(scrapeEndDate).getTime() : Infinity;
+              if (resJson.data && Array.isArray(resJson.data)) {
+                resJson.data = resJson.data.filter(item => {
+                  const itemDateStr = item.created_at;
+                  if (!itemDateStr) return false;
+                  
+                  const formattedDateStr = itemDateStr.includes(' ') 
+                    ? itemDateStr.replace(' ', 'T') 
+                    : itemDateStr + "T12:00:00";
+                  const itemDt = new Date(formattedDateStr).getTime();
+                  
+                  if (isNaN(itemDt)) return false;
+                  return itemDt >= startDt && itemDt <= endDt;
+                });
+              }
+            }
+
             setLastResponse(resJson);
             const resImport = await importScrapedData(currentUni.id.toString(), currentCat, resJson);
             
@@ -375,10 +399,7 @@ export default function Simulator() {
 
             addScraperLog("success", `[${currentUni.name} - ${catLabel}] +${resImport.importedCount} baru, ${resImport.duplicateCount} duplikat.`);
 
-            const recordsFiltered = resJson.recordsFiltered || 0;
-            const recordsReturned = (resJson.data || []).length;
-
-            if (recordsReturned < batchLength || (currentStart + recordsReturned) >= recordsFiltered) {
+            if (originalRecordsReturned < batchLength || (currentStart + originalRecordsReturned) >= recordsFiltered) {
               hasMore = false;
             } else {
               currentStart += batchLength;
@@ -530,6 +551,28 @@ export default function Simulator() {
             resJson = JSON.parse(resText);
           }
           
+          const originalRecordsReturned = (resJson.data || []).length;
+          const recordsFiltered = resJson.recordsFiltered || 0;
+
+          if (scrapeStartDate || scrapeEndDate) {
+            const startDt = scrapeStartDate ? new Date(scrapeStartDate).getTime() : 0;
+            const endDt = scrapeEndDate ? new Date(scrapeEndDate).getTime() : Infinity;
+            if (resJson.data && Array.isArray(resJson.data)) {
+              resJson.data = resJson.data.filter(item => {
+                const itemDateStr = item.created_at;
+                if (!itemDateStr) return false;
+                
+                const formattedDateStr = itemDateStr.includes(' ') 
+                  ? itemDateStr.replace(' ', 'T') 
+                  : itemDateStr + "T12:00:00";
+                const itemDt = new Date(formattedDateStr).getTime();
+                
+                if (isNaN(itemDt)) return false;
+                return itemDt >= startDt && itemDt <= endDt;
+              });
+            }
+          }
+
           setLastResponse(resJson);
 
           const resImport = await importScrapedData(selectedUni, currentCat, resJson);
@@ -538,12 +581,9 @@ export default function Simulator() {
           totalImportedGlobal += resImport.importedCount;
           totalDuplicatesGlobal += resImport.duplicateCount;
 
-          const recordsFiltered = resJson.recordsFiltered || 0;
-          const recordsReturned = (resJson.data || []).length;
+          addScraperLog("success", `[${catLabel}] Sukses mengambil ${originalRecordsReturned} raw data. (${resImport.importedCount} baru tersaring, ${resImport.duplicateCount} diperbarui/dilewati).`);
 
-          addScraperLog("success", `[${catLabel}] Sukses mengambil ${recordsReturned} data. (${resImport.importedCount} baru, ${resImport.duplicateCount} diperbarui/dilewati).`);
-
-          if (recordsReturned < batchLength || (currentStart + recordsReturned) >= recordsFiltered || !catPath.includes('datatable')) {
+          if (originalRecordsReturned < batchLength || (currentStart + originalRecordsReturned) >= recordsFiltered || !catPath.includes('datatable')) {
             hasMore = false;
           } else {
             currentStart += batchLength;
@@ -635,6 +675,13 @@ export default function Simulator() {
                     Perhatian: Aksi ini akan menarik data untuk SELURUH Universitas dan Kategori sekaligus. Proses ini mungkin memakan waktu lama.
                   </span>
                 </div>
+
+                <div className="payload-info-banner flex-gap-2" style={{ background: 'rgba(234, 88, 12, 0.08)', border: '1px solid rgba(234, 88, 12, 0.15)', color: 'var(--bps-orange)' }}>
+                  <AlertCircle size={16} />
+                  <span style={{ fontSize: '0.75rem', fontWeight: '600' }}>
+                    Harap jangan keluar ke navigasi halaman lain selama proses masih berjalan!
+                  </span>
+                </div>
                 
                 <div className="form-group">
                   <label>BPS Admin Cookie Header (Autentikasi):</label>
@@ -666,6 +713,31 @@ export default function Simulator() {
                   <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
                     Sangat disarankan jeda minimal 2000-3000ms untuk menghindari pemblokiran oleh server BPS.
                   </span>
+                </div>
+
+                <div className="form-group" style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
+                  <div style={{ flex: 1 }}>
+                    <label>Filter Tanggal Mulai:</label>
+                    <input 
+                      type="date" 
+                      value={scrapeStartDate} 
+                      onChange={(e) => setScrapeStartDate(e.target.value)}
+                      className="input-control"
+                      disabled={proxyLoading}
+                      style={{ fontSize: '0.8rem', width: '100%' }}
+                    />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label>Filter Tanggal Akhir:</label>
+                    <input 
+                      type="date" 
+                      value={scrapeEndDate} 
+                      onChange={(e) => setScrapeEndDate(e.target.value)}
+                      className="input-control"
+                      disabled={proxyLoading}
+                      style={{ fontSize: '0.8rem', width: '100%' }}
+                    />
+                  </div>
                 </div>
 
                 <button 
@@ -817,6 +889,31 @@ export default function Simulator() {
                         disabled={proxyLoading}
                         style={{ fontSize: '0.8rem', fontFamily: 'monospace' }}
                       />
+                    </div>
+
+                    <div className="form-group" style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
+                      <div style={{ flex: 1 }}>
+                        <label>Filter Tanggal Mulai:</label>
+                        <input 
+                          type="date" 
+                          value={scrapeStartDate} 
+                          onChange={(e) => setScrapeStartDate(e.target.value)}
+                          className="input-control"
+                          disabled={proxyLoading}
+                          style={{ fontSize: '0.8rem', width: '100%' }}
+                        />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <label>Filter Tanggal Akhir:</label>
+                        <input 
+                          type="date" 
+                          value={scrapeEndDate} 
+                          onChange={(e) => setScrapeEndDate(e.target.value)}
+                          className="input-control"
+                          disabled={proxyLoading}
+                          style={{ fontSize: '0.8rem', width: '100%' }}
+                        />
+                      </div>
                     </div>
 
                     <button 

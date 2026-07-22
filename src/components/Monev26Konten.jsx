@@ -34,7 +34,7 @@ import {
   Users,
   RefreshCw
 } from 'lucide-react';
-import list from '../data/potikDataFiltered.json';
+import { fetchFilteredPotikList } from '../data/apiClient';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -142,17 +142,18 @@ export default function Monev26Konten() {
   const [isExportingPdf, setIsExportingPdf]     = useState(false);
 
   // ── Muat data ───────────────────────────────────────────────────
-  const loadData = useCallback(() => {
+  const loadData = useCallback(async () => {
     setIsLoading(true);
-    setTimeout(() => {
-      try {
-        setPotiks(list);
-        const regionSet = [...new Set(list.map(p => p.region).filter(Boolean))].sort();
-        setRegions(regionSet);
-      } catch (err) {
-        console.error('Monev26Konten: gagal memuat data', err);
-      }
-    }, 50);
+    try {
+      const data = await fetchFilteredPotikList();
+      setPotiks(data);
+      const regionSet = [...new Set(data.map(p => p.region).filter(Boolean))].sort();
+      setRegions(regionSet);
+    } catch (err) {
+      console.error('Monev26Konten: gagal memuat data', err);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
   useEffect(() => {
