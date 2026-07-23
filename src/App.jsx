@@ -6,6 +6,7 @@ import PotikDetail from './components/PotikDetail';
 import Leaderboard from './components/Leaderboard';
 import Simulator from './components/Simulator';
 import AnalysisInsight from './components/AnalysisInsight';
+import Monev26Konten from './components/Monev26Konten';
 import { resetDatabase } from './data/apiClient';
 
 function App() {
@@ -29,7 +30,7 @@ function App() {
   const renderActiveTabContent = () => {
     switch (activeTab) {
       case 'dashboard':
-        return <Dashboard onSelectPotik={handleSelectPotik} setActiveTab={setActiveTab} />;
+        return <Dashboard onSelectPotik={handleSelectPotik} setActiveTab={setActiveTab} isFiltered={false} />;
       case 'potik-list':
         return <PotikList onSelectPotik={handleSelectPotik} />;
       case 'potik-detail':
@@ -45,8 +46,12 @@ function App() {
         return <Leaderboard onSelectPotik={handleSelectPotik} />;
       case 'simulator':
         return <Simulator />;
+      case 'monev-26-konten':
+        return <Monev26Konten />;
+      case 'monev-26-ipotik':
+        return <Dashboard onSelectPotik={handleSelectPotik} setActiveTab={setActiveTab} isFiltered={true} />;
       default:
-        return <Dashboard onSelectPotik={handleSelectPotik} setActiveTab={setActiveTab} />;
+        return <Dashboard onSelectPotik={handleSelectPotik} setActiveTab={setActiveTab} isFiltered={false} />;
     }
   };
 

@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  LayoutDashboard, 
-  MapPin, 
-  Trophy, 
-  Terminal, 
-  RefreshCw, 
+import {
+  LayoutDashboard,
+  MapPin,
+  Trophy,
+  Terminal,
+  RefreshCw,
   CheckCircle,
   Database,
   ChevronLeft,
   ChevronRight,
-  BarChart2
+  BarChart2,
+  Layers,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { getScraperLogs } from '../data/apiClient';
 import logoPotik from '../assets/logo_pojok_statistik.svg';
@@ -17,6 +20,7 @@ import logoPotik from '../assets/logo_pojok_statistik.svg';
 export default function Sidebar({ activeTab, setActiveTab, onResetDb, isCollapsed, onToggleCollapse }) {
   const [lastScrapeTime, setLastScrapeTime] = useState("");
   const [scraperLogsCount, setScraperLogsCount] = useState(0);
+  const [expandedMenus, setExpandedMenus] = useState({});
 
   // Perbarui status scraper berdasarkan log terbaru
   const updateScraperStatus = async () => {
@@ -41,11 +45,20 @@ export default function Sidebar({ activeTab, setActiveTab, onResetDb, isCollapse
   }, []);
 
   const menuItems = [
-    { id: 'dashboard', label: 'Dashboard',        icon: LayoutDashboard },
-    { id: 'analysis',  label: 'Analysis Insight', icon: BarChart2 },
-    { id: 'potik-list', label: 'Daftar Potik',    icon: MapPin },
-    { id: 'leaderboard', label: 'Leaderboard',    icon: Trophy },
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'analysis', label: 'Analysis Insight', icon: BarChart2 },
+    { id: 'potik-list', label: 'Daftar Potik', icon: MapPin },
+    { id: 'leaderboard', label: 'Leaderboard', icon: Trophy },
     { id: 'simulator', label: 'Scraper Simulator', icon: Terminal },
+    {
+      id: 'monev-26',
+      label: "Monev '26",
+      icon: Layers,
+      subItems: [
+        { id: 'monev-26-konten', label: 'Konten PSV' },
+        { id: 'monev-26-ipotik', label: 'Indeks Potik' }
+      ]
+    },
   ];
 
   return (
@@ -66,6 +79,42 @@ export default function Sidebar({ activeTab, setActiveTab, onResetDb, isCollapse
       <nav className="sidebar-menu">
         {menuItems.map((item) => {
           const IconComponent = item.icon;
+
+          if (item.subItems) {
+            const isExpanded = expandedMenus[item.id];
+            const isActive = activeTab.startsWith(item.id);
+            return (
+              <div key={item.id} className="menu-group">
+                <button
+                  className={`menu-item ${isActive ? 'active' : ''}`}
+                  onClick={() => setExpandedMenus(prev => ({ ...prev, [item.id]: !prev[item.id] }))}
+                >
+                  <IconComponent size={20} />
+                  <span>{item.label}</span>
+                  {!isCollapsed && (
+                    <div className="submenu-indicator" style={{ marginLeft: 'auto', display: 'flex' }}>
+                      {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    </div>
+                  )}
+                </button>
+                {isExpanded && !isCollapsed && (
+                  <div className="submenu-list">
+                    {item.subItems.map(subItem => (
+                      <button
+                        key={subItem.id}
+                        className={`submenu-item ${activeTab === subItem.id ? 'active' : ''}`}
+                        onClick={() => setActiveTab(subItem.id)}
+                      >
+                        <div className="submenu-dot"></div>
+                        <span>{subItem.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          }
+
           return (
             <button
               key={item.id}
@@ -118,7 +167,8 @@ export default function Sidebar({ activeTab, setActiveTab, onResetDb, isCollapse
       </div>
 
       {/* Sidebar specific CSS injected directly or styling class declarations */}
-      <style dangerouslySetInnerHTML={{__html: `
+      <style dangerouslySetInnerHTML={{
+        __html: `
         .sidebar {
           position: fixed;
           top: 0;
@@ -284,6 +334,56 @@ export default function Sidebar({ activeTab, setActiveTab, onResetDb, isCollapse
           border-radius: 0 10px 10px 0;
           font-weight: 600;
           padding-left: calc(1rem - 3px);
+        }
+
+        .submenu-list {
+          display: flex;
+          flex-direction: column;
+          gap: 0.2rem;
+          margin-top: 0.2rem;
+          margin-bottom: 0.5rem;
+          margin-left: 2.2rem;
+        }
+
+        .submenu-item {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          padding: 0.65rem 1rem;
+          background: transparent;
+          border: none;
+          color: var(--text-secondary);
+          border-radius: 8px;
+          cursor: pointer;
+          font-family: var(--font-heading);
+          font-weight: 500;
+          font-size: 0.85rem;
+          text-align: left;
+          width: 100%;
+          transition: var(--transition-fast);
+        }
+
+        .submenu-item:hover {
+          background: rgba(0, 0, 0, 0.02);
+          color: var(--text-primary);
+        }
+
+        .submenu-item.active {
+          color: var(--bps-blue);
+          font-weight: 600;
+        }
+
+        .submenu-dot {
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          background: var(--text-muted);
+          transition: var(--transition-fast);
+        }
+
+        .submenu-item.active .submenu-dot {
+          background: var(--bps-blue);
+          transform: scale(1.2);
         }
 
         .sidebar-status {

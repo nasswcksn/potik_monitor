@@ -1,4 +1,4 @@
-import { getInitialPotikData } from './potikData';
+import { getInitialPotikData, getFilteredPotikData } from './potikData';
 
 // IndexedDB Helper Functions
 const DB_NAME = 'BpsPotikMonitoringDB';
@@ -54,42 +54,9 @@ const idbSet = async (key, val) => {
 
 // Region Migration Helper
 const runRegionMigration = (data) => {
-  const cityToBakorwil = {
-    "Pacitan": "Bakorwil I Madiun",
-    "Ngawi": "Bakorwil I Madiun",
-    "Magetan": "Bakorwil I Madiun",
-    "Madiun": "Bakorwil I Madiun",
-    "Nganjuk": "Bakorwil I Madiun",
-    "Trenggalek": "Bakorwil I Madiun",
-    "Ponorogo": "Bakorwil I Madiun",
-    "Kediri": "Bakorwil I Madiun",
-    "Tulungagung": "Bakorwil I Madiun",
-    "Bojonegoro": "Bakorwil II Bojonegoro",
-    "Tuban": "Bakorwil II Bojonegoro",
-    "Lamongan": "Bakorwil II Bojonegoro",
-    "Jombang": "Bakorwil II Bojonegoro",
-    "Mojokerto": "Bakorwil II Bojonegoro",
-    "Gresik": "Bakorwil II Bojonegoro",
-    "Surabaya": "Bakorwil III Malang",
-    "Sidoarjo": "Bakorwil III Malang",
-    "Malang": "Bakorwil III Malang",
-    "Pasuruan": "Bakorwil III Malang",
-    "Blitar": "Bakorwil III Malang",
-    "Bangkalan": "Bakorwil IV Pamekasan",
-    "Sampang": "Bakorwil IV Pamekasan",
-    "Pamekasan": "Bakorwil IV Pamekasan",
-    "Sumenep": "Bakorwil IV Pamekasan",
-    "Jember": "Bakorwil V Jember",
-    "Lumajang": "Bakorwil V Jember",
-    "Bondowoso": "Bakorwil V Jember",
-    "Situbondo": "Bakorwil V Jember",
-    "Probolinggo": "Bakorwil V Jember",
-    "Banyuwangi": "Bakorwil V Jember"
-  };
-
   let hasChanges = false;
   const migratedData = data.map(uni => {
-    const formalRegion = cityToBakorwil[uni.city];
+    const formalRegion = uni.city;
     if (formalRegion && uni.region !== formalRegion) {
       hasChanges = true;
       return { ...uni, region: formalRegion };
@@ -214,11 +181,22 @@ export const addScraperLog = async (type, message) => {
 // ==================== EXPORTED API CLIENT EMULATORS ====================
 
 // 1. Fetch seluruh daftar universitas (Potik)
-export const fetchPotikList = () => {
+export const fetchPotikList = async () => {
   return new Promise(async (resolve) => {
     setTimeout(async () => {
-      resolve(await getStoredData());
-    }, 200); // Simulasi delay network
+      const data = await getStoredData();
+      resolve(data);
+    }, 500); // Simulasi delay jaringan
+  });
+};
+
+// 2b. Fetch Filtered Monev Data
+export const fetchFilteredPotikList = async () => {
+  return new Promise(async (resolve) => {
+    setTimeout(async () => {
+      const data = await getFilteredPotikData();
+      resolve(data);
+    }, 500);
   });
 };
 
@@ -268,14 +246,15 @@ export const fetchDatatable = (type, universityId, draw = 1, start = 0, length =
         const endMs = endDate ? new Date(endDate + "T23:59:59").getTime() : null;
 
         filteredData = filteredData.filter(item => {
-          const itemDateStr = item.created_at || item.date;
-          if (!itemDateStr) return true;
+          const itemDateStr = item.created_at;
+          if (!itemDateStr) return false;
+          
           const formattedDateStr = itemDateStr.includes(' ') 
             ? itemDateStr.replace(' ', 'T') 
             : itemDateStr + "T12:00:00";
           const itemMs = new Date(formattedDateStr).getTime();
           
-          if (isNaN(itemMs)) return true;
+          if (isNaN(itemMs)) return false;
           if (startMs && itemMs < startMs) return false;
           if (endMs && itemMs > endMs) return false;
           return true;
@@ -299,10 +278,10 @@ export const fetchDatatable = (type, universityId, draw = 1, start = 0, length =
 };
 
 // 4. Fetch Global Feed (Timeline aktivitas terbaru dari semua Potik)
-export const fetchLatestFeed = (limit = 10) => {
+export const fetchLatestFeed = (limit = 10, isFiltered = false) => {
   return new Promise(async (resolve) => {
     setTimeout(async () => {
-      const data = await getStoredData();
+      const data = isFiltered ? await getFilteredPotikData() : await getStoredData();
       const allFeed = [];
 
       data.forEach(potik => {
@@ -341,7 +320,6 @@ export const resetDatabase = async () => {
     return {
       ...uni,
       status: "Perlu Tindak Lanjut",
-      engagementScore: 0,
       contentsCount: {
         infografis: 0,
         video: 0,
@@ -426,14 +404,6 @@ export const triggerScrapeSimulation = (universityId, contentType) => {
     potik.contentsCount[contentType] += 1;
     potik.contentsCount.total += 1;
     
-    // Perbarui Engagement Score
-    let points = 4;
-    if (contentType === "video") points = 6;
-    else if (contentType === "edukasi") points = 3;
-    else if (contentType === "kegiatan") points = 8;
-    
-    potik.engagementScore = Math.min(potik.engagementScore + points, 100);
-    
     // Update status jika sebelumnya Kurang Aktif/Pasif
     if (potik.status === "Perlu Tindak Lanjut" || potik.status === "Kurang Aktif") {
       potik.status = "Aktif";
@@ -481,12 +451,20 @@ export const importScrapedData = (universityId, contentType, datatableResponse) 
         // Tentukan thumbnail default berdasarkan kategori jika data kosong
         const BPS_STORAGE_BASE = 'https://pojokstatistik.bps.go.id/storage/';
         let defaultThumbnail = "";
+        let ytId = null;
+
+        if (contentType === "video") {
+          ytId = item.youtube_id || 
+                 (item.url && item.url.length === 11 ? item.url : null) || 
+                 (item.youtube_url && item.youtube_url.includes('v=') ? item.youtube_url.split('v=')[1].split('&')[0] : null);
+        }
+
         if (contentType === "infografis") {
           defaultThumbnail = item.thumbnail || (item.file ? (item.file.startsWith('http') ? item.file : BPS_STORAGE_BASE + item.file) : null) || `https://picsum.photos/400/500?random=${item.id || 1}`;
         } else if (contentType === "edukasi") {
-          defaultThumbnail = item.thumbnail || (item.file ? (item.file.startsWith('http') ? item.file : BPS_STORAGE_BASE + item.file) : null) || `https://picsum.photos/300/400?random=${item.id || 1}`;
+          defaultThumbnail = item.poster_url || item.thumbnail || (item.file ? (item.file.startsWith('http') ? item.file : BPS_STORAGE_BASE + item.file) : null) || `https://picsum.photos/300/400?random=${item.id || 1}`;
         } else if (contentType === "video") {
-          defaultThumbnail = item.thumbnail || `https://picsum.photos/400/225?random=${item.id || 1}`;
+          defaultThumbnail = item.thumbnail || (ytId ? `https://img.youtube.com/vi/${ytId}/maxresdefault.jpg` : `https://picsum.photos/400/225?random=${item.id || 1}`);
         } else {
           defaultThumbnail = item.thumbnail || `https://picsum.photos/600/400?random=${item.id || 1}`;
         }
@@ -517,9 +495,9 @@ export const importScrapedData = (universityId, contentType, datatableResponse) 
         // Kategori khusus
         if (contentType === "video") {
           newItem.video_url = item.preview_embed_url || 
-                              item.video_url || 
+                              (ytId ? `https://www.youtube.com/embed/${ytId}` : null) || 
+                              (item.video_url && item.video_url.includes('embed') ? item.video_url : null) ||
                               (item.instagram_url ? (item.instagram_url.endsWith('/') ? item.instagram_url + 'embed' : item.instagram_url + '/embed') : null) ||
-                              (item.url && item.url.length === 11 ? 'https://www.youtube.com/embed/' + item.url : null) || 
                               "https://www.youtube.com/embed/dQw4w9WgXcQ";
         } else if (contentType === "edukasi") {
           newItem.type = item.type || "Buku/Booklet";
@@ -556,15 +534,6 @@ export const importScrapedData = (universityId, contentType, datatableResponse) 
         potik.contentsCount.edukasi + 
         potik.contentsCount.kegiatan;
 
-      // Kalkulasi ulang Engagement Score secara akurat dari awal
-      const totalInfografis = potik.contents.infografis.length;
-      const totalVideo = potik.contents.video.length;
-      const totalEdukasi = potik.contents.edukasi.length;
-      const totalKegiatan = potik.contents.kegiatan.length;
-      
-      const score = (totalInfografis * 4) + (totalVideo * 6) + (totalEdukasi * 3) + (totalKegiatan * 8);
-      potik.engagementScore = Math.min(Math.round(score), 100);
-      
       // Update status keaktifan secara otomatis berdasarkan jumlah konten
       if (potik.contentsCount.total > 15) {
         potik.status = "Aktif";

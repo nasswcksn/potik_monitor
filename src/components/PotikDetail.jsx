@@ -42,8 +42,8 @@ export default function PotikDetail({ potikId, onBack }) {
   const [start, setStart] = useState(0);
   const [length, setLength] = useState(5); // Baris per halaman
   const [isLoading, setIsLoading] = useState(false);
-  const [startDate, setStartDate] = useState("2025-08-01");
-  const [endDate, setEndDate] = useState("2026-07-31");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
   // Lightbox modal state
   const [selectedMedia, setSelectedMedia] = useState(null);
@@ -97,10 +97,10 @@ export default function PotikDetail({ potikId, onBack }) {
 
   // Radar Chart Data - Perbandingan dengan Rata-rata Ideal BPS
   const chartData = [
-    { subject: 'Infografis', Kampus: potik.contentsCount.infografis, Target: 12 },
-    { subject: 'Video', Kampus: potik.contentsCount.video, Target: 6 },
-    { subject: 'Edukasi', Kampus: potik.contentsCount.edukasi, Target: 10 },
-    { subject: 'Kegiatan', Kampus: potik.contentsCount.kegiatan, Target: 5 }
+    { subject: 'Infografis', Kampus: potik.contentsCount.infografis },
+    { subject: 'Video', Kampus: potik.contentsCount.video },
+    { subject: 'Edukasi', Kampus: potik.contentsCount.edukasi },
+    { subject: 'Kegiatan', Kampus: potik.contentsCount.kegiatan }
   ];
 
   const getStatusClass = (status) => {
@@ -191,26 +191,19 @@ export default function PotikDetail({ potikId, onBack }) {
                 <span className="label flex-gap-2"><Users size={14} className="color-kegiatan" /> Kegiatan Lain</span>
                 <span className="val">{potik.contentsCount.kegiatan}</span>
               </div>
-              <div className="stat-row border-top-glow">
-                <span className="label flex-gap-2 font-bold"><TrendingUp size={14} className="icon-blue" /> Skor Keaktifan</span>
-                <span className="val font-bold text-gradient-bps">{potik.engagementScore} / 100</span>
-              </div>
             </div>
           </div>
 
           {/* Radar Chart */}
           <div className="glass-card chart-card">
             <h3>Peta Komposisi Konten</h3>
-            <p className="chart-sub text-muted">Dibandingkan dengan standar keaktifan BPS Jatim</p>
             <div className="chart-container-detail">
               <ResponsiveContainer width="100%" height={260}>
                 <RadarChart cx="50%" cy="50%" radius="70%" data={chartData}>
                   <PolarGrid stroke="var(--border-color)" />
                   <PolarAngleAxis dataKey="subject" tick={{ fill: 'var(--text-secondary)', fontSize: 11 }} />
-                  <PolarRadiusAxis angle={30} domain={[0, 15]} tick={{ fill: 'var(--text-muted)' }} />
+                  <PolarRadiusAxis angle={30} tick={{ fill: 'var(--text-muted)' }} />
                   <Radar name="Kampus" dataKey="Kampus" stroke="var(--bps-blue-light)" fill="var(--bps-blue)" fillOpacity={0.25} />
-                  <Radar name="Target BPS" dataKey="Target" stroke="var(--bps-orange-light)" fill="var(--bps-orange)" fillOpacity={0.05} />
-                  <Legend wrapperStyle={{ fontSize: 11, color: 'var(--text-primary)' }} />
                 </RadarChart>
               </ResponsiveContainer>
             </div>
@@ -328,8 +321,8 @@ export default function PotikDetail({ potikId, onBack }) {
                     {/* Row 1: thumbnail (infografis only) + main content */}
                     <div className="catalog-card__body">
 
-                      {/* Thumbnail — infografis only */}
-                      {activeSubTab === "infografis" && item.thumbnail && (
+                      {/* Thumbnail — infografis & edukasi */}
+                      {(activeSubTab === "infografis" || activeSubTab === "edukasi")&& item.thumbnail && (
                         <div className="catalog-thumb" onClick={() => setSelectedMedia(item)}>
                           <img
                             src={item.thumbnail}
@@ -444,29 +437,31 @@ export default function PotikDetail({ potikId, onBack }) {
               <X size={20} />
             </button>
             <div className="modal-body-layout">
-              <div className="modal-preview">
-                {activeSubTab === 'video' ? (
-                  <iframe 
-                    width="100%" 
-                    height="315" 
-                    src={selectedMedia.video_url || "https://www.youtube.com/embed/dQw4w9WgXcQ"} 
-                    title="YouTube video player" 
-                    frameBorder="0" 
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                    allowFullScreen
-                  ></iframe>
-                ) : (
-                  <img 
-                    src={selectedMedia.thumbnail} 
-                    alt={selectedMedia.name} 
-                    className="modal-img" 
-                    onError={(e) => {
-                      e.target.onerror = null;
-                      e.target.src = `https://picsum.photos/400/300?random=${selectedMedia.id}`;
-                    }}
-                  />
-                )}
-              </div>
+              {activeSubTab !== 'kegiatan' && (
+                <div className="modal-preview">
+                  {activeSubTab === 'video' ? (
+                    <iframe 
+                      width="100%" 
+                      height="315" 
+                      src={selectedMedia.video_url || "https://www.youtube.com/embed/dQw4w9WgXcQ"} 
+                      title="YouTube video player" 
+                      frameBorder="0" 
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                      allowFullScreen
+                    ></iframe>
+                  ) : (
+                    <img 
+                      src={selectedMedia.thumbnail} 
+                      alt={selectedMedia.name} 
+                      className="modal-img" 
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = `https://picsum.photos/400/300?random=${selectedMedia.id}`;
+                      }}
+                    />
+                  )}
+                </div>
+              )}
               <div className="modal-info">
                 <span className="date">{selectedMedia.created_at}</span>
                 <h2>{selectedMedia.name}</h2>

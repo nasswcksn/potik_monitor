@@ -11,14 +11,13 @@ import {
   ExternalLink
 } from 'lucide-react';
 import L from 'leaflet';
-import { fetchPotikList, fetchLatestFeed } from '../data/apiClient';
+import { fetchPotikList, fetchFilteredPotikList, fetchLatestFeed } from '../data/apiClient';
 
-export default function Dashboard({ onSelectPotik, setActiveTab }) {
+export default function Dashboard({ onSelectPotik, setActiveTab, isFiltered }) {
   const [stats, setStats] = useState({
     total: 0,
     active: 0,
-    contents: 0,
-    avgScore: 0
+    contents: 0
   });
   const [leaderboard, setLeaderboard] = useState([]);
   const [feed, setFeed] = useState([]);
@@ -28,23 +27,22 @@ export default function Dashboard({ onSelectPotik, setActiveTab }) {
 
   const loadData = async () => {
     try {
-      const potikList = await fetchPotikList();
+      const potikList = isFiltered ? await fetchFilteredPotikList() : await fetchPotikList();
       setPotiks(potikList);
 
       // Hitung Statistik
       const total = potikList.length;
       const active = potikList.filter(p => p.status === 'Aktif').length;
       const contents = potikList.reduce((acc, p) => acc + p.contentsCount.total, 0);
-      const avgScore = Math.round(potikList.reduce((acc, p) => acc + p.engagementScore, 0) / total);
 
-      setStats({ total, active, contents, avgScore });
+      setStats({ total, active, contents });
 
       // Leaderboard Top 5
-      const sorted = [...potikList].sort((a, b) => b.engagementScore - a.engagementScore);
+      const sorted = [...potikList].sort((a, b) => b.contentsCount.total - a.contentsCount.total);
       setLeaderboard(sorted.slice(0, 5));
 
       // Load Recent Feed
-      const recentFeed = await fetchLatestFeed(8);
+      const recentFeed = await fetchLatestFeed(8, isFiltered);
       setFeed(recentFeed);
     } catch (err) {
       console.error("Error loading dashboard data:", err);
@@ -122,7 +120,6 @@ export default function Dashboard({ onSelectPotik, setActiveTab }) {
             </div>
             <div class="popup-stats">
               <div><span>Konten:</span> <b>${uni.contentsCount.total}</b></div>
-              <div><span>Skor:</span> <b>${uni.engagementScore}/100</b></div>
             </div>
             <span class="badge ${
               uni.status === 'Aktif' ? 'badge-active' : uni.status === 'Kurang Aktif' ? 'badge-warning' : 'badge-danger'
@@ -172,7 +169,7 @@ export default function Dashboard({ onSelectPotik, setActiveTab }) {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid-4 stats-grid">
+      <div className="grid-3 stats-grid">
         <div className="glass-card stat-card flex-gap-3">
           <div className="icon-wrapper blue">
             <Building size={24} />
@@ -203,17 +200,6 @@ export default function Dashboard({ onSelectPotik, setActiveTab }) {
             <span className="label">Total Konten</span>
             <h3>{stats.contents}</h3>
             <span className="subtext">Diunggah Agen & BPS</span>
-          </div>
-        </div>
-
-        <div className="glass-card stat-card flex-gap-3">
-          <div className="icon-wrapper cyan">
-            <TrendingUp size={24} />
-          </div>
-          <div>
-            <span className="label">Rata-rata Skor</span>
-            <h3>{stats.avgScore} <span className="fraction">/ 100</span></h3>
-            <span className="subtext">Indeks Partisipasi</span>
           </div>
         </div>
       </div>
@@ -262,10 +248,7 @@ export default function Dashboard({ onSelectPotik, setActiveTab }) {
                   </div>
                 </div>
                 <div className="item-right">
-                  <div className="score-val">{uni.engagementScore} Pts</div>
-                  <div className="progress-bar-bg">
-                    <div className="progress-bar-fill" style={{ width: `${uni.engagementScore}%` }}></div>
-                  </div>
+                  <div className="score-val" style={{fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.85rem'}}>{uni.contentsCount.total} Konten</div>
                 </div>
               </div>
             ))}

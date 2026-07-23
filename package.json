@@ -8,7 +8,8 @@
     "build": "vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "proxy": "node proxy.js"
+    "proxy": "node proxy.js",
+    "watch-data": "node filterData.js"
   },
   "dependencies": {
     "@fortawesome/fontawesome-svg-core": "^7.3.0",
